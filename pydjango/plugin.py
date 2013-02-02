@@ -9,13 +9,13 @@ import pytest
 
 
 try:
-    import django
+    from django.conf import ENVIRONMENT_VARIABLE, settings
     DJANGO_INSTALLED = True
 except ImportError:
     DJANGO_INSTALLED = False
+    ENVIRONMENT_VARIABLE = "DJANGO_SETTINGS_MODULE"
 
 
-SETTINGS_MODULE_ENV = 'DJANGO_SETTINGS_MODULE'
 
 
 def pytest_addoption(parser):
@@ -34,24 +34,23 @@ def pytest_addoption(parser):
                      help='Set DJANGO_SETTINGS_MODULE.')
     group._addoption('--liveserver', default=None,
                       help='Address and port for the live_server fixture.')
-    parser.addini(SETTINGS_MODULE_ENV,
+    parser.addini(ENVIRONMENT_VARIABLE,
                   'Django settings module to use by pydjango.')
 
 @pytest.mark.tryfirst
-def pytest_configure(config):
+def pytest_configure(config, __multicall__):
     if not DJANGO_INSTALLED:
         return
-    settings_module = config.option.ds or config.getini(SETTINGS_MODULE_ENV) or\
-                      os.environ.get(SETTINGS_MODULE_ENV)
+    settings_module = config.option.ds or config.getini(ENVIRONMENT_VARIABLE) or\
+                      os.environ.get(ENVIRONMENT_VARIABLE)
     if settings_module:
-        os.environ[SETTINGS_MODULE_ENV] = settings_module
-        try:
-            from django.conf import settings
-            settings.DATABASES
-            from .django_plugin import DjangoPlugin
-            config.pluginmanager.register(DjangoPlugin(config), '_pydjango')
-        except ImportError, e:
-            raise pytest.UsageError('Failed to import project settings. (%s)' %str(e))
+        os.environ[ENVIRONMENT_VARIABLE] = settings_module
     else:
-        os.environ.pop(SETTINGS_MODULE_ENV, None)
+        if not settings.configured:
+            __multicall__.execute()
+    try:
+        from .django_plugin import DjangoPlugin
+        config.pluginmanager.register(DjangoPlugin(config), '_pydjango')
+    except ImportError, e:
+        raise pytest.UsageError('Failed to import project settings. (%s)' %str(e))
 

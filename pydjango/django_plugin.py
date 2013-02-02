@@ -115,9 +115,9 @@ class  DjangoPlugin(Fixtures):
                         items_for_sort.append(trans_item)
                         start_index -= 1
                         trans_item = sorted_by_modules[start_index]
-                    # preserver old order but move tests with transaction to the end
-                    sorted_items = chain(*[list(i[1]) for i in
-                            groupby(items_for_sort, lambda x: issubclass(x.cls, TransactionTestCase))])
+                    # preserve old order but move tests with transaction to the end
+                    sorted_items = chain(*[list(i[1]) for i in groupby(items_for_sort,
+                             lambda x: issubclass(x.cls, TransactionTestCase))])
                     sorted_by_modules[start_index:index+1] = list(sorted_items)
 
         items[:] = sorted_by_modules
