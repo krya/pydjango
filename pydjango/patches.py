@@ -5,6 +5,7 @@ import inspect
 import pytest
 from _pytest.unittest import UnitTestCase, TestCaseFunction
 
+import django
 from django.conf import settings
 from django.db import connections, transaction
 from django.db.backends.sqlite3.base import DatabaseOperations as BDO
@@ -29,7 +30,11 @@ def patch_sqlite():
             options.update({'isolation_level':None})
             settings.DATABASES[db]['OPTIONS'] = options
             connections[db].features.uses_savepoints = True
-            connections[db].ops = BaseDatabaseOperations()
+            if django.VERSION < (1,4) :
+                connections[db].ops = BaseDatabaseOperations()
+            else:
+                connections[db].ops = BaseDatabaseOperations(db)
+
 
 def make_savepoints():
     savepoints = {}
