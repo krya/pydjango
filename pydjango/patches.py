@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import inspect
-
 import pytest
 from _pytest.unittest import UnitTestCase, TestCaseFunction
 
@@ -13,6 +11,7 @@ from django.core import mail
 
 from django.test.testcases import TransactionTestCase, TestCase
 
+
 class BaseDatabaseOperations(BDO):
 
     def savepoint_create_sql(self, sid):
@@ -21,6 +20,19 @@ class BaseDatabaseOperations(BDO):
         return "RELEASE SAVEPOINT %s" % sid
     def savepoint_rollback_sql(self, sid):
         return "ROLLBACK TO SAVEPOINT %s" % sid
+
+def cursor_wrapper(function):
+    def wraps(*args, **kwargs):
+        cursor = function(*args, **kwargs)
+        if hasattr(function.im_self, 'setup_savepoints'):
+            node_list = function.im_self.setup_savepoints[:]
+            function.im_self.setup_savepoints = []
+            for node in node_list:
+                node.savepoints = {}
+                for db in connections:
+                    node.savepoints[db] = transaction.savepoint(using=db)
+        return cursor
+    return wraps
 
 def patch_sqlite():
     for db in connections:
@@ -34,19 +46,15 @@ def patch_sqlite():
                 connections[db].ops = BaseDatabaseOperations()
             else:
                 connections[db].ops = BaseDatabaseOperations(db)
+        connections[db]._cursor = cursor_wrapper(connections[db]._cursor)
 
-
-def make_savepoints():
-    savepoints = {}
-    for db in connections:
-        savepoints[db] = transaction.savepoint(using=db)
-    return savepoints
-
-def rollback_savepoints(savepoints):
-    for db in savepoints:
-        transaction.savepoint_rollback(savepoints[db], using=db)
 
 class SavepointMixin(object):
+
+    def __init__(self, *args, **kwargs):
+        super(SavepointMixin, self).__init__(*args, **kwargs)
+        self.need_savepoint = True
+        self.savepoints = {}
 
     def Function(self, *args, **kwargs):
         return Function(*args, **kwargs)
@@ -54,14 +62,28 @@ class SavepointMixin(object):
     def Instance(self, *args, **kwargs):
         return Instance(*args, **kwargs)
 
+    def schedule_savepoints(self):
+        for db in connections:
+            if not hasattr(connections[db], 'setup_savepoints'):
+                connections[db].setup_savepoints = []
+            connections[db].setup_savepoints.append(self)
+
+    def rollback_savepoints(self):
+        for db in connections:
+            try:
+                connections[db].setup_savepoints.pop(connections[db].setup_savepoints.index(self))
+            except ValueError:pass
+            if self.savepoints:
+                transaction.savepoint_rollback(self.savepoints[db], using=db)
+
     def setup(self, *args, **kwargs):
-        if self.cls is None or issubclass(self.cls, TestCase) or not issubclass(self.cls,TransactionTestCase):
-            self.savepoints = make_savepoints()
+        if self.need_savepoint:
+            self.schedule_savepoints()
         return super(SavepointMixin, self).setup(*args, **kwargs)
 
     def teardown(self, *args, **kwargs):
-        if self.cls is None or issubclass(self.cls, TestCase) or not issubclass(self.cls,TransactionTestCase):
-            rollback_savepoints(self.savepoints)
+        if self.cls is None or hasattr(self, 'savepoints'):
+            self.rollback_savepoints()
         return super(SavepointMixin, self).teardown(*args, **kwargs)
 
 class Function(SavepointMixin, pytest.Function):
@@ -71,9 +93,19 @@ class Function(SavepointMixin, pytest.Function):
 
 class Instance(SavepointMixin, pytest.Instance):pass
 
-class Class(SavepointMixin, pytest.Class):pass
+class Class(SavepointMixin, pytest.Class):
+
+    def setup(self):
+        if not hasattr(self.obj, 'setup_class'):
+            self.need_savepoint = False
+        return super(Class, self).setup()
 
 class SUnitTestCase(SavepointMixin, UnitTestCase):
+
+    def setup(self):
+        if issubclass(self.cls, TransactionTestCase) and not issubclass(self.cls, TestCase):
+            self.need_savepoint = True
+        return super(SUnitTestCase, self).setup()
 
     def collect(self):
         for function in super(SUnitTestCase, self).collect():
@@ -82,21 +114,15 @@ class SUnitTestCase(SavepointMixin, UnitTestCase):
 class STestCaseFunction(SavepointMixin, TestCaseFunction):pass
 
 
-class Module(pytest.Module):
+class Module(SavepointMixin, pytest.Module):
 
     Class = Class
-    Instance = Instance
     Function = Function
 
     def setup(self):
-        if hasattr(self.obj, 'setup_module'):
-            self.savepoints = make_savepoints()
+        if not hasattr(self.obj, 'setup_module'):
+            self.need_savepoint = False
         return super(Module, self).setup()
 
-    def teardown(self):
-        res = super(Module, self).teardown()
-        if hasattr(self.obj, 'setup_module') and not getattr(self.obj, 'has_transactions', False):
-            rollback_savepoints(self.savepoints)
-        return res
 
 

@@ -1,21 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from copy import deepcopy
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.test.client import RequestFactory, Client
+from django.test.client import Client
 from django.contrib.auth import login
 from django.utils.importlib import import_module
 
-def memoize(function):
-    def wraps(*args, **kwargs):
-        if not hasattr(function, '__memoized__'):
-            function.__memoized__ = function(*args, **kwargs)
-        return deepcopy(function.__memoized__)
-    return wraps
-
+from .client import RequestFactory
 
 class Fixtures(object):
 
@@ -53,7 +46,9 @@ class Fixtures(object):
         return settings
 
     @pytest.fixture()
-    def tclient(self, client, user, rf):
+    def uclient(self, client, user, rf):
+        """Client instance with logged in user
+        """
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         if client.session:
             rf.session = client.session
@@ -77,8 +72,11 @@ class Fixtures(object):
         }
         client.cookies[session_cookie].update(cookie_data)
         client.user = user
+        # client.login(username=user.username, password=user.password)
         return client
 
     @pytest.fixture()
     def aclient(self, client, admin, rf):
-        return self.tclient(client, admin, rf)
+        """Client instance with logged in admin
+        """
+        return self.uclient(client, admin, rf)

@@ -17,9 +17,8 @@ from django.test.simple import DjangoTestSuiteRunner
 from .patches import Module, patch_sqlite, SUnitTestCase
 from .db_reuse import monkey_patch_creation_for_db_reuse
 from .fixtures import Fixtures
+from .utils import nop
 
-def nop(*args, **kwargs):
-    return
 
 class  DjangoPlugin(Fixtures):
 
@@ -93,7 +92,6 @@ class  DjangoPlugin(Fixtures):
                     # dont close connections
                     item.parent.obj._post_teardown = nop
                 elif issubclass(item.cls, TransactionTestCase):
-                    # TODO: reorder tests so they can use fixtures as is in nose
                     item.module.has_transactions = True
                     if item.module not in trans_modules:
                         trans_modules.append(item.module)
@@ -118,8 +116,7 @@ class  DjangoPlugin(Fixtures):
                     # preserve old order but move tests with transaction to the end
                     sorted_items = chain(*[list(i[1]) for i in groupby(items_for_sort,
                              lambda x: issubclass(x.cls, TransactionTestCase))])
-                    sorted_by_modules[start_index:index+1] = list(sorted_items)
-
+                    sorted_by_modules[start_index+1:index+1] = list(sorted_items)
         items[:] = sorted_by_modules
 
     @pytest.mark.tryfirst
