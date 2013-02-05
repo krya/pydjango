@@ -20,20 +20,9 @@ except ImportError:
 
 def pytest_addoption(parser):
     group = parser.getgroup('pydjango')
-    group._addoption('--reuse-db',
-                     action='store_true', dest='reuse_db', default=False,
-                     help='Re-use the testing database if it already exists, '
-                          'and do not remove it when the test finishes. This '
-                          'option will be ignored when --no-db is given.')
-    group._addoption('--create-db',
-                     action='store_true', dest='create_db', default=False,
-                     help='Re-create the database, even if it exists. This '
-                          'option will be ignored if not --reuse-db is given.')
-    group._addoption('--ds',
+    group._addoption('--django-settings',
                      action='store', type='string', dest='ds', default=None,
-                     help='Set DJANGO_SETTINGS_MODULE.')
-    group._addoption('--liveserver', default=None,
-                      help='Address and port for the live_server fixture.')
+                     help='Set %s.' %ENVIRONMENT_VARIABLE)
     parser.addini(ENVIRONMENT_VARIABLE,
                   'Django settings module to use by pydjango.')
 

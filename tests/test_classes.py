@@ -11,7 +11,8 @@ def setup_module():
 
 class TestPyClass(object):
 
-    def setup_class(self):
+    @classmethod
+    def setup_class(cls):
         User.objects.create(username='setup_class', email='class@example.com')
 
     def setup_method(self, method):

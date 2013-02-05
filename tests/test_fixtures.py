@@ -12,9 +12,9 @@ def test_user(user):
 def test_admin(admin):
     assert admin.pk
 
-def test_tclient(tclient, settings):
-    assert tclient.user
-    assert tclient.cookies[settings.SESSION_COOKIE_NAME]
+def test_uclient(uclient, settings):
+    assert uclient.user
+    assert uclient.cookies[settings.SESSION_COOKIE_NAME]
 
 def test_aclient(aclient):
     from django.core.urlresolvers import reverse
