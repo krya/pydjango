@@ -17,7 +17,7 @@ from django.test.simple import DjangoTestSuiteRunner
 from .patches import Module, patch_sqlite, SUnitTestCase
 from .db_reuse import monkey_patch_creation_for_db_reuse
 from .fixtures import Fixtures
-from .utils import nop
+from .utils import nop, is_transaction_test
 
 
 class  DjangoPlugin(Fixtures):
@@ -115,12 +115,30 @@ class  DjangoPlugin(Fixtures):
                         trans_item = sorted_by_modules[start_index]
                     # preserve old order but move tests with transaction to the end
                     sorted_items = chain(*[list(i[1]) for i in groupby(items_for_sort,
-                             lambda x: issubclass(x.cls, TransactionTestCase))])
+                             lambda x: x.cls and issubclass(x.cls, TransactionTestCase))])
                     sorted_by_modules[start_index+1:index+1] = list(sorted_items)
         items[:] = sorted_by_modules
 
+
+    def restore_database(self, item):
+        for db in connections:
+                management.call_command('flush', verbosity=0, interactive=False,
+                                        database=db)
+        all(i.setup() for i in item.listchain())
+
+    def pytest_runtest_protocol(self, item, nextitem):
+        """Clear database if previous test item was from different module and it
+        was TransactionTestCase. then run setup on all ascending modules
+        """
+        if nextitem is not None:
+            if item.cls is not None and is_transaction_test(item.cls):
+                if nextitem.module != item.module:
+                    item._request.addfinalizer(lambda :self.restore_database(nextitem))
+
     @pytest.mark.tryfirst
     def pytest_pycollect_makeitem(self, collector, name, obj):
+        """Shadow builtin unittest makeitem with patched class and function
+        """
         try:
             isunit = issubclass(obj, unittest.TestCase)
         except KeyboardInterrupt:

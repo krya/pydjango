@@ -9,7 +9,7 @@ from django.db import connections, transaction
 from django.db.backends.sqlite3.base import DatabaseOperations as BDO
 from django.core import mail
 
-from django.test.testcases import TransactionTestCase, TestCase
+from .utils import is_transaction_test
 
 
 class BaseDatabaseOperations(BDO):
@@ -103,15 +103,19 @@ class Class(SavepointMixin, pytest.Class):
 class SUnitTestCase(SavepointMixin, UnitTestCase):
 
     def setup(self):
-        if issubclass(self.cls, TransactionTestCase) and not issubclass(self.cls, TestCase):
-            self.need_savepoint = True
+        if is_transaction_test(self.cls):
+            self.need_savepoint = False
         return super(SUnitTestCase, self).setup()
 
     def collect(self):
         for function in super(SUnitTestCase, self).collect():
             yield STestCaseFunction(name=function.name, parent=function.parent)
 
-class STestCaseFunction(SavepointMixin, TestCaseFunction):pass
+class STestCaseFunction(SavepointMixin, TestCaseFunction):
+    def setup(self):
+        if is_transaction_test(self.cls):
+            self.need_savepoint = False
+        return super(STestCaseFunction, self).setup()
 
 
 class Module(SavepointMixin, pytest.Module):
