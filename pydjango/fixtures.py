@@ -24,7 +24,7 @@ class Fixtures(object):
 
     @pytest.fixture()
     def user(self):
-        """RequestFactory instance"""
+        """User instance"""
         try:
             user = User.objects.get(username='test')
         except User.DoesNotExist:

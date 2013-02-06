@@ -3,50 +3,11 @@
 import pytest
 from _pytest.unittest import UnitTestCase, TestCaseFunction
 
-import django
-from django.conf import settings
 from django.db import connections, transaction
-from django.db.backends.sqlite3.base import DatabaseOperations as BDO
 from django.core import mail
 
 from .utils import is_transaction_test
 
-
-class BaseDatabaseOperations(BDO):
-
-    def savepoint_create_sql(self, sid):
-        return "SAVEPOINT %s" % sid
-    def savepoint_commit_sql(self, sid):
-        return "RELEASE SAVEPOINT %s" % sid
-    def savepoint_rollback_sql(self, sid):
-        return "ROLLBACK TO SAVEPOINT %s" % sid
-
-def cursor_wrapper(function):
-    def wraps(*args, **kwargs):
-        cursor = function(*args, **kwargs)
-        if hasattr(function.im_self, 'setup_savepoints'):
-            node_list = function.im_self.setup_savepoints[:]
-            function.im_self.setup_savepoints = []
-            for node in node_list:
-                node.savepoints = {}
-                for db in connections:
-                    node.savepoints[db] = transaction.savepoint(using=db)
-        return cursor
-    return wraps
-
-def patch_sqlite():
-    for db in connections:
-        if connections[db].vendor == 'sqlite':
-            options = settings.DATABASES[db].get("OPTIONS", {})
-            # isolation_level should be None to use savepoints in sqlite
-            options.update({'isolation_level':None})
-            settings.DATABASES[db]['OPTIONS'] = options
-            connections[db].features.uses_savepoints = True
-            if django.VERSION < (1,4) :
-                connections[db].ops = BaseDatabaseOperations()
-            else:
-                connections[db].ops = BaseDatabaseOperations(db)
-        connections[db]._cursor = cursor_wrapper(connections[db]._cursor)
 
 
 class SavepointMixin(object):
@@ -105,6 +66,8 @@ class SUnitTestCase(SavepointMixin, UnitTestCase):
     def setup(self):
         if is_transaction_test(self.cls):
             self.need_savepoint = False
+            for node in self.listchain():
+                node.savepoints = {}
         return super(SUnitTestCase, self).setup()
 
     def collect(self):

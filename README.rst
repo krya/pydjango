@@ -1,7 +1,16 @@
 About
 =====
-This is yet another `py.test <http://pytest.org/>`_ plugin to help you test your django application.
-The difference is in the way it handles tests - in pydjango each test run surrounded by savepoints so you can use things like `setup_module/setup_class <http://pytest.org/latest/xunit_setup.html>`_
+This is a `py.test <http://pytest.org/>`_ plugin to help you test your django application.
+
+Features
+========
+* support `pytest-xdist <http://pypi.python.org/pypi/pytest-xdist>`_
+    currently each node in will create its own database (there is not way to run transaction tests not in parallel)
+* support for nested `setup_module/setup_class <http://pytest.org/latest/xunit_setup.html>`_
+    every module or class is surrounded with savepoint
+* lazy savepoints
+    savepoints won't be created unless your test function touches database
+* djangos TransactionTestCase, TestCase and plain unittests TestCase are supported.
 
 Installation
 ============

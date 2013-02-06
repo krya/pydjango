@@ -14,8 +14,8 @@ from django.test.testcases import (TransactionTestCase, TestCase,
 from django.test.simple import DjangoTestSuiteRunner
 
 
-from .patches import Module, patch_sqlite, SUnitTestCase
-from .db_reuse import monkey_patch_creation_for_db_reuse
+from .patches import Module, SUnitTestCase
+from .db_reuse import monkey_patch_creation_for_db_reuse, wrap_database
 from .fixtures import Fixtures
 from .utils import nop, is_transaction_test
 
@@ -28,18 +28,17 @@ class  DjangoPlugin(Fixtures):
         config.pluginmanager._setns(pytest, {'Module':Module})
 
     def configure(self):
+
         self.runner = DjangoTestSuiteRunner(interactive=False)
         self.runner.setup_test_environment()
         commands = management.get_commands() # load all commands first
         is_sqlite = settings.DATABASES.get('default', {}).get('ENGINE', '')\
                             .endswith('sqlite3')
-        if is_sqlite:
-            patch_sqlite()
-        if hasattr(self.config, 'slaveinput') and not is_sqlite:
-            return
+        wrap_database()
         try:
-            # management._commands['syncdb'] = 'django.core'
-            monkey_patch_creation_for_db_reuse()
+            db_postfix = getattr(self.config, 'slaveinput', {}).get("slaveid", "")
+            monkey_patch_creation_for_db_reuse(db_postfix
+                                             if not is_sqlite else None)
             if 'south' in settings.INSTALLED_APPS:
                 from south.management.commands import patch_for_test_db_setup
                 if is_sqlite:
@@ -120,7 +119,7 @@ class  DjangoPlugin(Fixtures):
         items[:] = sorted_by_modules
 
 
-    def restore_database(self, item):
+    def restore_database(self, item, nextitem):
         for db in connections:
                 management.call_command('flush', verbosity=0, interactive=False,
                                         database=db)
@@ -130,10 +129,10 @@ class  DjangoPlugin(Fixtures):
         """Clear database if previous test item was from different module and it
         was TransactionTestCase. then run setup on all ascending modules
         """
-        if nextitem is not None:
-            if item.cls is not None and is_transaction_test(item.cls):
-                if nextitem.module != item.module:
-                    item._request.addfinalizer(lambda :self.restore_database(nextitem))
+        if item.cls is not None and is_transaction_test(item.cls):
+            if nextitem is None or nextitem.module != item.module:
+                if nextitem is not None:
+                    item._request.addfinalizer(lambda :self.restore_database(item, nextitem))
 
     @pytest.mark.tryfirst
     def pytest_pycollect_makeitem(self, collector, name, obj):
