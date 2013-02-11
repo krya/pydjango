@@ -30,7 +30,7 @@ def test_database_exists_from_previous_run(connection):
     try:
         connection.cursor()
         return True
-    except StandardError:  # TODO: Be more discerning but still DB agnostic.
+    except Exception:  # TODO: Be more discerning but still DB agnostic.
         return False
     finally:
         connection.close()

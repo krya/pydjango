@@ -1,16 +1,19 @@
 About
 -----
 This is a `py.test <http://pytest.org/>`_ plugin to help you test your django application.
+
 supports python 2.6-3.2 and django 1.3-1.5
+
+.. image:: https://travis-ci.org/krya/pydjango.png
 
 Features
 --------
 * support `pytest-xdist <http://pypi.python.org/pypi/pytest-xdist>`_
-    currently each node will create its own database (there is not way to run transaction tests not in parallel)
+    currently each node will create its own database (there is not way to run transaction tests synchronously on a single node)
 * support for nested `setup_module/setup_class <http://pytest.org/latest/xunit_setup.html>`_
     every module or class is surrounded with savepoint
 * lazy savepoints
-    savepoints won't be created unless your test function touches database
+    savepoints won't be created unless your test function and/or fixture accessing database saving few round-trips
 * djangos TransactionTestCase, TestCase and plain unittests TestCase are supported.
 
 Installation
@@ -41,6 +44,9 @@ First of all you need to make this plugin aware of your django settings. To do s
 
     def pytest_configure():
         settings.configure(DATABASES={'default':{'ENGINE':'django.db.backends.sqlite3'}})
+
+
+Now can run tests with ``py.test`` conmmand.
 
 
 Available fixtures
