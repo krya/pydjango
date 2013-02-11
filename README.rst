@@ -1,11 +1,12 @@
 About
-=====
+-----
 This is a `py.test <http://pytest.org/>`_ plugin to help you test your django application.
+supports python 2.6-3.2 and django 1.3-1.5
 
 Features
-========
+--------
 * support `pytest-xdist <http://pypi.python.org/pypi/pytest-xdist>`_
-    currently each node in will create its own database (there is not way to run transaction tests not in parallel)
+    currently each node will create its own database (there is not way to run transaction tests not in parallel)
 * support for nested `setup_module/setup_class <http://pytest.org/latest/xunit_setup.html>`_
     every module or class is surrounded with savepoint
 * lazy savepoints
@@ -13,11 +14,11 @@ Features
 * djangos TransactionTestCase, TestCase and plain unittests TestCase are supported.
 
 Installation
-============
+------------
 ``pip install git+https://github.com/krya/pydjango#egg=pydjango``
 
 Usage
-=====
+-----
 First of all you need to make this plugin aware of your django settings. To do so you have few options:
 
 * make an environment variable: ::
@@ -43,7 +44,7 @@ First of all you need to make this plugin aware of your django settings. To do s
 
 
 Available fixtures
-==================
+------------------
 * client
     `Client instance <https://docs.djangoproject.com/en/1.4/topics/testing/#module-django.test.client>`_
 * rf
@@ -60,5 +61,3 @@ Available fixtures
     a client instance with logged in `admin` user
 
 both `uclient` and `aclient` are logged in using ``django.contrib.auth.backends.ModelBackend``
-
-.. note:: this fixtures are not a django fixtures but pytest
