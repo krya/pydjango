@@ -2,6 +2,7 @@
 
 import pytest
 
+import django
 from django.contrib.auth.models import User
 from django.test import TestCase, TransactionTestCase
 
@@ -36,4 +37,9 @@ class TestTestCase(TestCase):
 class TestTransaction(TransactionTestCase):
 
     def test_trans_method(self):
-        assert User.objects.count() == 0
+        if django.VERSION < (1,5):
+            assert User.objects.count() == 0
+        else:
+            # django 1.5 flushes db on teardown
+            assert User.objects.count() == 1
+

@@ -34,11 +34,12 @@ class  DjangoPlugin(Fixtures):
         commands = management.get_commands() # load all commands first
         is_sqlite = settings.DATABASES.get('default', {}).get('ENGINE', '')\
                             .endswith('sqlite3')
-        wrap_database()
         try:
+            wrap_database()
             db_postfix = getattr(self.config, 'slaveinput', {}).get("slaveid", "")
-            monkey_patch_creation_for_db_reuse(db_postfix
-                                             if not is_sqlite else None)
+            monkey_patch_creation_for_db_reuse(db_postfix if not is_sqlite else None,
+                                               force=self.config.option.create_db)
+
             if 'south' in settings.INSTALLED_APPS:
                 from south.management.commands import patch_for_test_db_setup
                 if is_sqlite:
@@ -51,6 +52,7 @@ class  DjangoPlugin(Fixtures):
                     management.call_command('migrate', verbosity=0)
             else:
                 self.runner.setup_databases()
+
         except SystemExit:
             raise pytest.UsageError('failed to created database')
 
@@ -78,10 +80,9 @@ class  DjangoPlugin(Fixtures):
             transaction.rollback(using=db)
             transaction.leave_transaction_management(using=db)
 
-    # @pytest.mark.trylast
+    @pytest.mark.trylast
     def pytest_collection_modifyitems(self, items):
-        trans_modules = [] # modules with transaction test cases
-        for item in items:
+        for index, item in enumerate(items):
             item.module.has_transactions = False
             if item.cls is not None:
                 if issubclass(item.cls, TestCase):
@@ -90,32 +91,20 @@ class  DjangoPlugin(Fixtures):
                     item.parent.obj._fixture_teardown = nop
                     # dont close connections
                     item.parent.obj._post_teardown = nop
-                elif issubclass(item.cls, TransactionTestCase):
+                elif is_transaction_test(item.cls):
                     item.module.has_transactions = True
-                    if item.module not in trans_modules:
-                        trans_modules.append(item.module)
-        sorted_by_modules = sorted(items, cmp=lambda a,b: -1 if b.module in \
-                                    trans_modules else 1)
-        items_count = len(items)
-        for index, item in enumerate(sorted_by_modules[:]):
+        trans_items = []
+        non_trans = []
+        for index, item in enumerate(items):
             if item.module.has_transactions:
-                if items_count == index+1:
-                    nextitem = None
-                elif items_count > index+1:
-                    nextitem = sorted_by_modules[index+1]
-                if nextitem is None or \
-                        sorted_by_modules[index+1].module != item.module:
-                    items_for_sort = []
-                    start_index = index
-                    trans_item = item
-                    while trans_item.module == item.module:
-                        items_for_sort.append(trans_item)
-                        start_index -= 1
-                        trans_item = sorted_by_modules[start_index]
-                    # preserve old order but move tests with transaction to the end
-                    sorted_items = chain(*[list(i[1]) for i in groupby(items_for_sort,
-                             lambda x: x.cls and issubclass(x.cls, TransactionTestCase))])
-                    sorted_by_modules[start_index+1:index+1] = list(sorted_items)
+                trans_items.append(item)
+            else:
+                non_trans.append(item)
+
+        trans_items = list(chain(*[it for module, iterator in groupby(trans_items, lambda x:x.module)
+                           for item,it in groupby(iterator, lambda x: x.cls and is_transaction_test(x.cls))]))
+
+        sorted_by_modules = non_trans+trans_items
         items[:] = sorted_by_modules
 
 

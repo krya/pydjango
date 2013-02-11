@@ -4,7 +4,7 @@ The code in this module is heavily inspired by django-nose:
 https://github.com/jbalogh/django-nose/
 """
 
-import new
+import types
 
 import django
 from django.conf import settings
@@ -36,7 +36,6 @@ def test_database_exists_from_previous_run(connection):
         connection.close()
         connection.settings_dict['NAME'] = orig_db_name
 
-
 def create_test_db(self, verbosity=1, autoclobber=False):
     """
     This method is a monkey patched version of create_test_db that
@@ -50,10 +49,12 @@ def create_test_db(self, verbosity=1, autoclobber=False):
         test_db_repr = ''
         if verbosity >= 2:
             test_db_repr = " ('%s')" % test_database_name
-        print "Re-using existing test database for alias '%s'%s..." % (
-            self.connection.alias, test_db_repr)
+        print("Re-using existing test database for alias '%s'%s..." % (
+            self.connection.alias, test_db_repr))
 
-    self.connection.features.confirm()
+    if hasattr(self.connection.features, 'confirm'):
+        # django < 1.5
+        self.connection.features.confirm()
 
     return test_database_name
 
@@ -61,22 +62,18 @@ def _get_test_db_name(self):
     name = super(self.__class__, self)._get_test_db_name()
     return name + self.db_postfix
 
-def monkey_patch_creation_for_db_reuse(db_postfix):
+def monkey_patch_creation_for_db_reuse(db_postfix, force=False):
     for alias in connections:
         connection = connections[alias]
         creation = connection.creation
         if db_postfix:
             creation.db_postfix = db_postfix
-            creation._get_test_db_name = new.instancemethod(_get_test_db_name,
-                                            creation, creation.__class__)
+            creation._get_test_db_name = types.MethodType(_get_test_db_name, creation)
         if test_database_exists_from_previous_run(connection):
             # Make sure our monkey patch is still valid in the future
             assert hasattr(creation, 'create_test_db')
-
-            creation.create_test_db = new.instancemethod(
-                    create_test_db, creation, creation.__class__)
-
-
+            if not force:
+                creation.create_test_db = types.MethodType(create_test_db, creation)
 
 
 class BaseDatabaseOperations(BDO):
@@ -91,9 +88,10 @@ class BaseDatabaseOperations(BDO):
 def cursor_wrapper(function):
     def wraps(*args, **kwargs):
         cursor = function(*args, **kwargs)
-        if hasattr(function.im_self, 'setup_savepoints'):
-            node_list = function.im_self.setup_savepoints[:]
-            function.im_self.setup_savepoints = []
+        self = getattr(function, 'im_self', function.__self__)
+        if hasattr(self, 'setup_savepoints'):
+            node_list = self.setup_savepoints[:]
+            self.setup_savepoints = []
             for node in node_list:
                 node.savepoints = {}
                 for db in connections:
