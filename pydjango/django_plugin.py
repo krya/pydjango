@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import sys
+
 from itertools import groupby, chain
 import unittest
 
@@ -35,11 +37,9 @@ class  DjangoPlugin(Fixtures):
         is_sqlite = settings.DATABASES.get('default', {}).get('ENGINE', '')\
                             .endswith('sqlite3')
         try:
-            wrap_database()
             db_postfix = getattr(self.config, 'slaveinput', {}).get("slaveid", "")
             monkey_patch_creation_for_db_reuse(db_postfix if not is_sqlite else None,
                                                force=self.config.option.create_db)
-
             if 'south' in settings.INSTALLED_APPS:
                 from south.management.commands import patch_for_test_db_setup
                 if is_sqlite:
@@ -53,8 +53,8 @@ class  DjangoPlugin(Fixtures):
             else:
                 self.runner.setup_databases()
 
-        except SystemExit:
-            raise pytest.UsageError('failed to created database')
+        except (SystemExit, Exception):
+            raise pytest.UsageError(sys.exc_info()[1])
 
     def pytest_pycollect_makemodule(self, path, parent):
         return Module(path, parent)
@@ -63,6 +63,7 @@ class  DjangoPlugin(Fixtures):
     @pytest.mark.tryfirst # or trylast as it was ?
     def pytest_sessionstart(self, session):
         # turn off debug toolbar to speed up testing
+        wrap_database()
         middlewares = []
         for mid in settings.MIDDLEWARE_CLASSES:
             if not mid.startswith('debug_toolbar'):

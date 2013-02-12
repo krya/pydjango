@@ -26,13 +26,10 @@ def test_database_exists_from_previous_run(connection):
     # Try to open a cursor to the test database
     orig_db_name = connection.settings_dict['NAME']
     connection.settings_dict['NAME'] = connection.creation._get_test_db_name()
-    from IPython import embed
-    embed()
     try:
         connection.cursor()
         return True
-    except Exception:  # TODO: Be more discerning but still DB agnostic.
-                       # DatabaseError ? OperationalError ?
+    except Exception:
         return False
     finally:
         connection.close()
