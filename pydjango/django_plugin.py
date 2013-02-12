@@ -37,6 +37,7 @@ class  DjangoPlugin(Fixtures):
         is_sqlite = settings.DATABASES.get('default', {}).get('ENGINE', '')\
                             .endswith('sqlite3')
         try:
+            wrap_database()
             db_postfix = getattr(self.config, 'slaveinput', {}).get("slaveid", "")
             monkey_patch_creation_for_db_reuse(db_postfix if not is_sqlite else None,
                                                force=self.config.option.create_db)
@@ -63,7 +64,6 @@ class  DjangoPlugin(Fixtures):
     @pytest.mark.tryfirst # or trylast as it was ?
     def pytest_sessionstart(self, session):
         # turn off debug toolbar to speed up testing
-        wrap_database()
         middlewares = []
         for mid in settings.MIDDLEWARE_CLASSES:
             if not mid.startswith('debug_toolbar'):
