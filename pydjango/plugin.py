@@ -16,18 +16,17 @@ except ImportError:
     ENVIRONMENT_VARIABLE = "DJANGO_SETTINGS_MODULE"
 
 
-
-
 def pytest_addoption(parser):
     group = parser.getgroup('pydjango')
     group._addoption('--django-settings',
                      action='store', type='string', dest='ds', default=None,
-                     help='Set %s.' %ENVIRONMENT_VARIABLE)
+                     help='Set %s.' % ENVIRONMENT_VARIABLE)
     group._addoption('--create-db',
                      action='store_true', dest='create_db', default=False,
                      help='Force database creation')
     parser.addini(ENVIRONMENT_VARIABLE,
                   'Django settings module to use by pydjango.')
+
 
 @pytest.mark.tryfirst
 def pytest_configure(config, __multicall__):
@@ -44,5 +43,4 @@ def pytest_configure(config, __multicall__):
         from .django_plugin import DjangoPlugin
         config.pluginmanager.register(DjangoPlugin(config), '_pydjango')
     except ImportError as e:
-        raise pytest.UsageError('Failed to import project settings. (%s)' %str(e))
-
+        raise pytest.UsageError('Failed to import project settings. (%s)' % str(e))

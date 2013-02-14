@@ -2,7 +2,7 @@
 
 import sys
 
-from itertools import groupby, chain
+from itertools import groupby
 import unittest
 
 import pytest
@@ -10,7 +10,7 @@ import pytest
 from django.conf import settings
 from django.db import connections, transaction
 from django.core import management
-from django.test.testcases import (TransactionTestCase, TestCase,
+from django.test.testcases import (TestCase,
                                    disable_transaction_methods,
                                     restore_transaction_methods)
 from django.test.simple import DjangoTestSuiteRunner
@@ -22,18 +22,18 @@ from .fixtures import Fixtures
 from .utils import nop, is_transaction_test
 
 
-class  DjangoPlugin(Fixtures):
+class DjangoPlugin(Fixtures):
 
     def __init__(self, config):
         self.config = config
         self.configure()
-        config.pluginmanager._setns(pytest, {'Module':Module})
+        config.pluginmanager._setns(pytest, {'Module': Module})
 
     def configure(self):
 
         self.runner = DjangoTestSuiteRunner(interactive=False)
         self.runner.setup_test_environment()
-        commands = management.get_commands() # load all commands first
+        management.get_commands()  # load all commands first
         is_sqlite = settings.DATABASES.get('default', {}).get('ENGINE', '')\
                             .endswith('sqlite3')
         try:
@@ -60,8 +60,7 @@ class  DjangoPlugin(Fixtures):
     def pytest_pycollect_makemodule(self, path, parent):
         return Module(path, parent)
 
-
-    @pytest.mark.tryfirst # or trylast as it was ?
+    @pytest.mark.tryfirst  # or trylast as it was ?
     def pytest_sessionstart(self, session):
         # turn off debug toolbar to speed up testing
         middlewares = []
@@ -101,13 +100,13 @@ class  DjangoPlugin(Fixtures):
                 trans_items.append(item)
             else:
                 non_trans.append(item)
-
-        trans_items = list(chain(*[it for module, iterator in groupby(trans_items, lambda x:x.module)
-                           for item,it in groupby(iterator, lambda x: x.cls and is_transaction_test(x.cls))]))
-
-        sorted_by_modules = non_trans+trans_items
+        sorted_trans = []
+        for module, iterator in groupby(trans_items[:], lambda x: x.module):
+            for item, it in groupby(iterator, lambda x: x.cls and is_transaction_test(x.cls)):
+                sorted_trans.extend(it)
+        sorted_by_modules = non_trans + sorted_trans
+        print sorted_by_modules
         items[:] = sorted_by_modules
-
 
     def restore_database(self, item, nextitem):
         for db in connections:
@@ -122,7 +121,7 @@ class  DjangoPlugin(Fixtures):
         if item.cls is not None and is_transaction_test(item.cls):
             if nextitem is None or nextitem.module != item.module:
                 if nextitem is not None:
-                    item._request.addfinalizer(lambda :self.restore_database(item, nextitem))
+                    item._request.addfinalizer(lambda: self.restore_database(item, nextitem))
 
     @pytest.mark.tryfirst
     def pytest_pycollect_makeitem(self, collector, name, obj):

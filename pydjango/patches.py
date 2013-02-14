@@ -9,7 +9,6 @@ from django.core import mail
 from .utils import is_transaction_test
 
 
-
 class SavepointMixin(object):
 
     def __init__(self, *args, **kwargs):
@@ -33,7 +32,8 @@ class SavepointMixin(object):
         for db in connections:
             try:
                 connections[db].setup_savepoints.pop(connections[db].setup_savepoints.index(self))
-            except ValueError:pass
+            except (ValueError, AttributeError):
+                pass
             if self.savepoints:
                 transaction.savepoint_rollback(self.savepoints[db], using=db)
 
@@ -47,10 +47,12 @@ class SavepointMixin(object):
             self.rollback_savepoints()
         return super(SavepointMixin, self).teardown(*args, **kwargs)
 
+
 class Function(SavepointMixin, pytest.Function):
     def setup(self, *args, **kwargs):
         mail.outbox = []
         return super(Function, self).setup(*args, **kwargs)
+
 
 class Instance(SavepointMixin, pytest.Instance):pass
 
@@ -60,6 +62,7 @@ class Class(SavepointMixin, pytest.Class):
         if not hasattr(self.obj, 'setup_class'):
             self.need_savepoint = False
         return super(Class, self).setup()
+
 
 class SUnitTestCase(SavepointMixin, UnitTestCase):
 
@@ -73,6 +76,7 @@ class SUnitTestCase(SavepointMixin, UnitTestCase):
     def collect(self):
         for function in super(SUnitTestCase, self).collect():
             yield STestCaseFunction(name=function.name, parent=function.parent)
+
 
 class STestCaseFunction(SavepointMixin, TestCaseFunction):
     def setup(self):
