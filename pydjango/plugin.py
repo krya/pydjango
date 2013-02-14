@@ -24,6 +24,9 @@ def pytest_addoption(parser):
     group._addoption('--create-db',
                      action='store_true', dest='create_db', default=False,
                      help='Force database creation')
+    group._addoption('--skip-trans',
+                     action='store_true', dest='skip_trans', default=False,
+                     help='Skip transactional tests')
     parser.addini(ENVIRONMENT_VARIABLE,
                   'Django settings module to use by pydjango.')
 

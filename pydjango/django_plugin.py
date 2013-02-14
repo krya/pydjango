@@ -26,8 +26,13 @@ class DjangoPlugin(Fixtures):
 
     def __init__(self, config):
         self.config = config
+        self.check_markers()
         self.configure()
         config.pluginmanager._setns(pytest, {'Module': Module})
+
+    def check_markers(self):
+        if 'not transaction' in self.config.option.markexpr or self.config.option.skip_trans:
+            self.skip_trans = True
 
     def configure(self):
 
@@ -92,6 +97,7 @@ class DjangoPlugin(Fixtures):
                     # dont close connections
                     item.parent.obj._post_teardown = nop
                 elif is_transaction_test(item.cls):
+                    item.keywords['transaction'] = True
                     item.module.has_transactions = True
         trans_items = []
         non_trans = []
@@ -105,7 +111,6 @@ class DjangoPlugin(Fixtures):
             for item, it in groupby(iterator, lambda x: x.cls and is_transaction_test(x.cls)):
                 sorted_trans.extend(it)
         sorted_by_modules = non_trans + sorted_trans
-        print sorted_by_modules
         items[:] = sorted_by_modules
 
     def restore_database(self, item, nextitem):
@@ -136,3 +141,8 @@ class DjangoPlugin(Fixtures):
         else:
             if isunit:
                 return SUnitTestCase(name, parent=collector)
+
+    @pytest.mark.tryfirst
+    def pytest_runtest_setup(self, item):
+        if 'transaction' in item.keywords and self.skip_trans:
+            pytest.skip('excluding transaction test')
