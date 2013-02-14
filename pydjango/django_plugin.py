@@ -31,6 +31,7 @@ class DjangoPlugin(Fixtures):
         config.pluginmanager._setns(pytest, {'Module': Module})
 
     def check_markers(self):
+        self.skip_trans = False
         if 'not transaction' in self.config.option.markexpr or self.config.option.skip_trans:
             self.skip_trans = True
 

@@ -67,3 +67,11 @@ Available fixtures
     a client instance with logged in `admin` user
 
 both `uclient` and `aclient` are logged in using ``django.contrib.auth.backends.ModelBackend``
+
+
+Comman line options
+-------------------
+* --create-db
+    Force database creation. Destroys db if it exists from previous run
+* --skip-trans
+    skip all `transactional` tests (LiveServerTestCase or TransactionTestCase)
