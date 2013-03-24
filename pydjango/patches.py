@@ -54,7 +54,9 @@ class Function(SavepointMixin, pytest.Function):
         return super(Function, self).setup(*args, **kwargs)
 
 
-class Instance(SavepointMixin, pytest.Instance):pass
+class Instance(SavepointMixin, pytest.Instance):
+    pass
+
 
 class Class(SavepointMixin, pytest.Class):
 
@@ -108,4 +110,5 @@ class Module(SavepointMixin, pytest.Module):
         self.obj.has_transactions = False
         if any([i for i in items if i.cls and is_transaction_test(i.cls)]):
             self.obj.has_transactions = True
+            self.need_savepoint = False
         return items

@@ -6,6 +6,7 @@ import django
 from django.contrib.auth.models import User
 from django.test import TestCase, TransactionTestCase
 
+
 def setup_module():
     User.objects.create(username='username', email='test@example.com')
 
@@ -37,9 +38,8 @@ class TestTestCase(TestCase):
 class TestTransaction(TransactionTestCase):
 
     def test_trans_method(self):
-        if django.VERSION < (1,5):
+        if django.VERSION < (1, 5):
             assert User.objects.count() == 0
         else:
             # django 1.5 flushes db on teardown
             assert User.objects.count() == 1
-
