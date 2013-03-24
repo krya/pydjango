@@ -6,7 +6,7 @@ from _pytest.unittest import UnitTestCase, TestCaseFunction
 from django.db import connections, transaction
 from django.core import mail
 
-from .utils import is_transaction_test
+from .utils import is_transaction_test, nop
 
 
 class SavepointMixin(object):
@@ -69,16 +69,23 @@ class SUnitTestCase(SavepointMixin, UnitTestCase):
     def setup(self):
         if is_transaction_test(self.cls):
             self.need_savepoint = False
-            for node in self.listchain():
-                node.savepoints = {}
+        else:
+            self.obj._fixture_setup = nop
+            # dont touch transaction
+            self.obj._fixture_teardown = nop
+            # dont close connections
+            self.obj._post_teardown = nop
         return super(SUnitTestCase, self).setup()
 
     def collect(self):
         for function in super(SUnitTestCase, self).collect():
+            if is_transaction_test(function.parent.obj):
+                self.keywords['transaction'] = True
             yield STestCaseFunction(name=function.name, parent=function.parent)
 
 
 class STestCaseFunction(SavepointMixin, TestCaseFunction):
+
     def setup(self):
         if is_transaction_test(self.cls):
             self.need_savepoint = False
@@ -95,5 +102,10 @@ class Module(SavepointMixin, pytest.Module):
             self.need_savepoint = False
         return super(Module, self).setup()
 
-
-
+    def collect(self, *args, **kwargs):
+        "Mark module if it contains transaction tests"
+        items = super(Module, self).collect(*args, **kwargs)
+        self.obj.has_transactions = False
+        if any([i for i in items if i.cls and is_transaction_test(i.cls)]):
+            self.obj.has_transactions = True
+        return items

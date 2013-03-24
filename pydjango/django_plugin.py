@@ -28,7 +28,6 @@ class DjangoPlugin(Fixtures):
         self.config = config
         self.check_markers()
         self.configure()
-        config.pluginmanager._setns(pytest, {'Module': Module})
 
     def check_markers(self):
         self.skip_trans = False
@@ -88,18 +87,6 @@ class DjangoPlugin(Fixtures):
 
     @pytest.mark.trylast
     def pytest_collection_modifyitems(self, items):
-        for index, item in enumerate(items):
-            item.module.has_transactions = False
-            if item.cls is not None:
-                if issubclass(item.cls, TestCase):
-                    item.parent.obj._fixture_setup = nop
-                    # dont touch transaction
-                    item.parent.obj._fixture_teardown = nop
-                    # dont close connections
-                    item.parent.obj._post_teardown = nop
-                elif is_transaction_test(item.cls):
-                    item.keywords['transaction'] = True
-                    item.module.has_transactions = True
         trans_items = []
         non_trans = []
         for index, item in enumerate(items):
