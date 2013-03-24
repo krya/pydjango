@@ -3,12 +3,13 @@
 import pytest
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, AnonymousUser
 from django.test.client import Client
 from django.contrib.auth import login
 from django.utils.importlib import import_module
 
 from .client import RequestFactory
+
 
 class Fixtures(object):
 
@@ -22,6 +23,11 @@ class Fixtures(object):
         """RequestFactory instance"""
         return RequestFactory()
 
+    @pytest.fixture
+    def anon_user(self):
+        """ AnonymousUser instance"""
+        return AnonymousUser()
+
     @pytest.fixture()
     def user(self):
         """User instance"""
@@ -30,7 +36,6 @@ class Fixtures(object):
         except User.DoesNotExist:
             user = User.objects.create_user('test', 'test@example.com')
         return user
-
 
     @pytest.fixture()
     def admin(self):
@@ -72,7 +77,6 @@ class Fixtures(object):
         }
         client.cookies[session_cookie].update(cookie_data)
         client.user = user
-        # client.login(username=user.username, password=user.password)
         return client
 
     @pytest.fixture()

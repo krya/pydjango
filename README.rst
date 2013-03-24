@@ -51,6 +51,7 @@ Now can run tests with ``py.test`` conmmand.
 
 Available fixtures
 ------------------
+
 * client
     `Client instance <https://docs.djangoproject.com/en/1.4/topics/testing/#module-django.test.client>`_
 * rf
@@ -59,6 +60,8 @@ Available fixtures
     user instace with username `test`
 * admin
     superuser instance with username `admin`
+* anon_user
+    `AnonymousUser instance <https://docs.djangoproject.com/en/1.4/topics/auth/#django.contrib.auth.models.AnonymousUser>`_
 * settings
     django's settings module
 * uclient
@@ -71,7 +74,8 @@ both `uclient` and `aclient` are logged in using ``django.contrib.auth.backends.
 
 Comman line options
 -------------------
-* --create-db
+
+* `--create-db`
     Force database creation. Destroys db if it exists from previous run
-* --skip-trans
+* `--skip-trans`
     skip all `transactional` tests (LiveServerTestCase or TransactionTestCase)
