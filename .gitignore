@@ -1,4 +1,7 @@
 *.pyc
-/.idea/
-/.tox/
-/pydjango.egg-info/
+.idea/
+.tox/
+pydjango.egg-info/
+build/*
+dist/*
+.cache
