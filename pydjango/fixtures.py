@@ -41,7 +41,10 @@ class Fixtures(object):
         try:
             user = User.objects.get(username='test')
         except User.DoesNotExist:
-            user = User.objects.create_user('test', 'test@example.com')
+            user = User.objects.create_user(
+                username='test',
+                email='test@example.com',
+                password='test')
         return user
 
     @pytest.fixture()
@@ -49,8 +52,10 @@ class Fixtures(object):
         try:
             admin = User.objects.get(username='admin')
         except User.DoesNotExist:
-            admin = User.objects.create_superuser('admin', 'admin@example.com',
-                                                  'admin')
+            admin = User.objects.create_superuser(
+                username='admin',
+                email='admin@example.com',
+                password='admin')
         return admin
 
     @pytest.fixture(scope='session')
