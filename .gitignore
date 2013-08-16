@@ -5,3 +5,4 @@ pydjango.egg-info/
 build/*
 dist/*
 .cache
+/.project

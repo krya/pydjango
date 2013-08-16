@@ -4,6 +4,7 @@ import sys
 
 from itertools import groupby
 import unittest
+import thread
 
 import pytest
 
@@ -76,14 +77,16 @@ class DjangoPlugin(Fixtures):
         for db in connections:
             transaction.enter_transaction_management(using=db)
             transaction.managed(True, using=db)
-        disable_transaction_methods()
+        # disable_transaction_methods()
 
     def pytest_sessionfinish(self, session):
         self.runner.teardown_test_environment()
         restore_transaction_methods()
         for db in connections:
-            transaction.rollback(using=db)
-            transaction.leave_transaction_management(using=db)
+            if connections[db]._thread_ident == thread.get_ident():
+                # only rollback if wrapper was created in same thread
+                transaction.rollback(using=db)
+                transaction.leave_transaction_management(using=db)
 
     @pytest.mark.trylast
     def pytest_collection_modifyitems(self, items):
