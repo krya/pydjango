@@ -106,6 +106,7 @@ class DjangoPlugin(Fixtures):
 
     def restore_database(self, item, nextitem):
         for db in connections:
+            if connections[db]._thread_ident == thread.get_ident():
                 management.call_command('flush', verbosity=0, interactive=False,
                                         database=db)
         all(i.setup() for i in item.listchain())
