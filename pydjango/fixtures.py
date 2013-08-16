@@ -28,7 +28,9 @@ class Fixtures(object):
     @pytest.fixture()
     def rf(self):
         """RequestFactory instance"""
-        return RequestFactory()
+        rf = RequestFactory()
+        rf.META = {}
+        return rf
 
     @pytest.fixture
     def anon_user(self):
