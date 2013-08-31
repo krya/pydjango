@@ -14,8 +14,7 @@ except ImportError:
 from django.test.client import Client
 from django.contrib.auth import login
 from django.utils.importlib import import_module
-
-from .client import RequestFactory
+from django.test.client import RequestFactory
 
 
 class Fixtures(object):
