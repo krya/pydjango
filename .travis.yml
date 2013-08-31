@@ -8,17 +8,15 @@ python:
 # Django 1.3 is only compatible with psycopg2 version <= 2.4.1
 # Django 1.4 is compatible with newer versions
 env:
-  - DB=sqlite3 DJANGO_VERSION=1.3.5
   - DB=sqlite3 DJANGO_VERSION=1.4.3
-  - DB=sqlite3 DJANGO_VERSION=1.5c1
+  - DB=sqlite3 DJANGO_VERSION=1.5.2
 
-  - DB=postgresql_psycopg2 DJANGO_VERSION=1.3.5 PSYCOPG_VERSION=2.4.1
   - DB=postgresql_psycopg2 DJANGO_VERSION=1.4.3 PSYCOPG_VERSION=2.4.6
-  - DB=postgresql_psycopg2 DJANGO_VERSION=1.5c1 PSYCOPG_VERSION=2.4.6
+  - DB=postgresql_psycopg2 DJANGO_VERSION=1.5.2 PSYCOPG_VERSION=2.4.6
 
 install:
-  - if [[ $DJANGO_VERSION != "1.5c1" ]]; then pip install --use-mirrors django==$DJANGO_VERSION; fi
-  - if [[ $DJANGO_VERSION == "1.5c1" ]]; then pip install https://github.com/django/django/archive/1.5c1.tar.gz#egg=django; fi
+  - if [[ $DJANGO_VERSION != "1.5.2" ]]; then pip install --use-mirrors django==$DJANGO_VERSION; fi
+  - if [[ $DJANGO_VERSION == "1.5.2" ]]; then pip install https://github.com/django/django/archive/1.5c1.tar.gz#egg=django; fi
   - if [[ $DB == "postgresql_psycopg2" ]]; then pip install psycopg2==$PSYCOPG_VERSION --use-mirrors; fi
   - python setup.py develop
 
@@ -30,10 +28,6 @@ script: py.test -s -v --create-db
 matrix:
   exclude:
     - python: "3.2"
-      env: DB=sqlite3 DJANGO_VERSION=1.3.5
-    - python: "3.2"
       env: DB=sqlite3 DJANGO_VERSION=1.4.3
-    - python: "3.2"
-      env: DB=postgresql_psycopg2 DJANGO_VERSION=1.3.5 PSYCOPG_VERSION=2.4.1
     - python: "3.2"
       env: DB=postgresql_psycopg2 DJANGO_VERSION=1.4.3 PSYCOPG_VERSION=2.4.6
