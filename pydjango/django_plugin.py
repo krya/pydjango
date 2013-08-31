@@ -4,7 +4,7 @@ import sys
 
 from itertools import groupby
 import unittest
-import thread
+import threading
 
 import pytest
 
@@ -83,7 +83,7 @@ class DjangoPlugin(Fixtures):
         self.runner.teardown_test_environment()
         restore_transaction_methods()
         for db in connections:
-            if connections[db]._thread_ident == thread.get_ident():
+            if connections[db]._thread_ident == threading.current_thread().ident:
                 # only rollback if wrapper was created in same thread
                 transaction.rollback(using=db)
                 transaction.leave_transaction_management(using=db)
@@ -106,7 +106,7 @@ class DjangoPlugin(Fixtures):
 
     def restore_database(self, item, nextitem):
         for db in connections:
-            if connections[db]._thread_ident == thread.get_ident():
+            if connections[db]._thread_ident == threading.current_thread().ident:
                 management.call_command('flush', verbosity=0, interactive=False,
                                         database=db)
         all(i.setup() for i in item.listchain())
