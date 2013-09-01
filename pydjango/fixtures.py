@@ -1,23 +1,40 @@
 # -*- coding: utf-8 -*-
 
+import sys
 import pytest
 
 from django.conf import settings
+from django.test.client import Client, RequestFactory
+from django.utils.importlib import import_module
 from django.contrib.auth.models import AnonymousUser
-
+from django.contrib.auth import login
 try:
     from django.contrib.auth import get_user_model
     User = get_user_model()
 except ImportError:
     from django.contrib.auth.models import User
 
-from django.test.client import Client
-from django.contrib.auth import login
-from django.utils.importlib import import_module
-from django.test.client import RequestFactory
+
+def _get_django_app(name):
+    if name not in sys.modules:
+        import_module(name)
+    return sys.modules[name]
+
+
+class DjangoAppsMeta(type):
+    def __new__(cls, clsname, bases, dct):
+        klass = type.__new__(cls, clsname, bases, dct)
+        for app_name in set(settings.INSTALLED_APPS):
+            name = app_name.split('.')[-1]
+            setattr(klass, name, pytest.fixture(scope='session')(
+                lambda self: _get_django_app(app_name)
+            ))
+        return klass
 
 
 class Fixtures(object):
+
+    __metaclass__ = DjangoAppsMeta
 
     @pytest.fixture()
     def client(self):
@@ -49,7 +66,7 @@ class Fixtures(object):
         return user
 
     @pytest.fixture()
-    def admin(self):
+    def admin_user(self):
         try:
             admin = User.objects.get(username='admin')
         except User.DoesNotExist:
@@ -93,7 +110,7 @@ class Fixtures(object):
         return client
 
     @pytest.fixture()
-    def aclient(self, client, admin, rf):
+    def aclient(self, client, admin_user, rf):
         """Client instance with logged in admin
         """
-        return self.uclient(client, admin, rf)
+        return self.uclient(client, admin_user, rf)

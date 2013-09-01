@@ -13,8 +13,8 @@ def test_user(user):
     assert user.pk
 
 
-def test_admin(admin):
-    assert admin.pk
+def test_admin_user(admin_user):
+    assert admin_user.pk
 
 
 def test_uclient(uclient, settings):
@@ -26,3 +26,8 @@ def test_aclient(aclient):
     from django.core.urlresolvers import reverse
     response = aclient.get(reverse('admin:index'))
     assert response.status_code == 200
+
+
+def test_installed_app(auth):
+    assert hasattr(auth, 'models')
+    assert hasattr(auth.models, 'User')
