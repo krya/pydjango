@@ -31,10 +31,10 @@ class DjangoAppsMeta(type):
             ))
         return klass
 
+DjangoApps = DjangoAppsMeta('DjangoApps', (object, ), {})
 
-class Fixtures(object):
 
-    __metaclass__ = DjangoAppsMeta
+class Fixtures(DjangoApps):
 
     @pytest.fixture()
     def client(self):
