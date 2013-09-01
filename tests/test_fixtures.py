@@ -9,8 +9,8 @@ def test_rf(rf):
     assert rf
 
 
-def test_user(user):
-    assert user.pk
+def test_user(admin_user):
+    assert admin_user.pk
 
 
 def test_admin_user(admin_user):

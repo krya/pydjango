@@ -106,7 +106,7 @@ class Fixtures(object):
             'expires': None,
         }
         client.cookies[session_cookie].update(cookie_data)
-        client.test_user = test_user
+        client.user = test_user
         return client
 
     @pytest.fixture()
