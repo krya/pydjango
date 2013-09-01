@@ -54,7 +54,7 @@ class Fixtures(object):
         return AnonymousUser()
 
     @pytest.fixture()
-    def user(self):
+    def test_user(self):
         """User instance"""
         try:
             user = User.objects.get(username='test')
@@ -81,16 +81,16 @@ class Fixtures(object):
         return settings
 
     @pytest.fixture()
-    def uclient(self, client, user, rf):
+    def uclient(self, client, test_user, rf):
         """Client instance with logged in user
         """
-        user.backend = 'django.contrib.auth.backends.ModelBackend'
+        test_user.backend = 'django.contrib.auth.backends.ModelBackend'
         if client.session:
             rf.session = client.session
         else:
             engine = import_module(settings.SESSION_ENGINE)
             rf.session = engine.SessionStore()
-        login(rf, user)
+        login(rf, test_user)
 
         # Save the session values.
         rf.session.save()
@@ -106,7 +106,7 @@ class Fixtures(object):
             'expires': None,
         }
         client.cookies[session_cookie].update(cookie_data)
-        client.user = user
+        client.test_user = test_user
         return client
 
     @pytest.fixture()

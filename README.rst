@@ -57,18 +57,18 @@ Available fixtures
     `Client instance <https://docs.djangoproject.com/en/1.4/topics/testing/#module-django.test.client>`_
 * rf
     `RequestFactory instance <https://docs.djangoproject.com/en/1.4/topics/testing/#django.test.client.RequestFactory:>`_
-* user
+* test_user
     user instace with username `test`
-* admin
+* admin_user
     superuser instance with username `admin`
 * anon_user
     `AnonymousUser instance <https://docs.djangoproject.com/en/1.4/topics/auth/#django.contrib.auth.models.AnonymousUser>`_
 * settings
     django's settings module
 * uclient
-    a client instance with logged in `test` user
+    a client instance with logged in test_user
 * aclient
-    a client instance with logged in `admin` user
+    a client instance with logged in admin_user
 
 both `uclient` and `aclient` are logged in using ``django.contrib.auth.backends.ModelBackend``
 
