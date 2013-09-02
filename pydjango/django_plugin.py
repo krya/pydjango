@@ -4,7 +4,6 @@ import sys
 
 from itertools import groupby
 import unittest
-import threading
 
 import pytest
 
@@ -15,12 +14,18 @@ from django.test.testcases import (TestCase,
                                    disable_transaction_methods,
                                     restore_transaction_methods)
 from django.test.simple import DjangoTestSuiteRunner
-
+from django.core.signals import request_finished, got_request_exception
+from django.db import close_connection, _rollback_on_exception
 
 from .patches import Module, SUnitTestCase
 from .db_reuse import monkey_patch_creation_for_db_reuse, wrap_database
 from .fixtures import Fixtures
 from .utils import nop, is_transaction_test
+
+
+# dont do any database operation if there is a liveserver running
+request_finished.disconnect(close_connection)
+got_request_exception.disconnect(_rollback_on_exception)
 
 
 class DjangoPlugin(Fixtures):
@@ -77,16 +82,18 @@ class DjangoPlugin(Fixtures):
         for db in connections:
             transaction.enter_transaction_management(using=db)
             transaction.managed(True, using=db)
-        # disable_transaction_methods()
+        disable_transaction_methods()
 
     def pytest_sessionfinish(self, session):
         self.runner.teardown_test_environment()
         restore_transaction_methods()
         for db in connections:
-            if connections[db]._thread_ident == threading.current_thread().ident:
-                # only rollback if wrapper was created in same thread
-                transaction.rollback(using=db)
+            transaction.rollback(using=db)
+            try:
                 transaction.leave_transaction_management(using=db)
+                transaction.managed(False, using=db)
+            except:
+                pass
 
     @pytest.mark.trylast
     def pytest_collection_modifyitems(self, items):
@@ -106,9 +113,8 @@ class DjangoPlugin(Fixtures):
 
     def restore_database(self, item, nextitem):
         for db in connections:
-            if connections[db]._thread_ident == threading.current_thread().ident:
-                management.call_command('flush', verbosity=0, interactive=False,
-                                        database=db)
+            management.call_command('flush', verbosity=0, interactive=False,
+                                    database=db)
         all(i.setup() for i in item.listchain())
 
     def pytest_runtest_protocol(self, item, nextitem):

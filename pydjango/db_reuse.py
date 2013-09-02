@@ -6,7 +6,6 @@ https://github.com/jbalogh/django-nose/
 
 import types
 
-import django
 from django.conf import settings
 from django.db import connections, transaction
 from django.db.backends.sqlite3.base import DatabaseOperations as BDO
@@ -107,15 +106,14 @@ def cursor_wrapper(function):
 
 
 def wrap_database():
-    for db in connections:
-        if connections[db].vendor == 'sqlite':
-            options = settings.DATABASES[db].get("OPTIONS", {})
+    connections._connections = connections._connections.default
+    for db in connections.all():
+        if db.vendor == 'sqlite':
+            options = settings.DATABASES[db.alias].get("OPTIONS", {})
             # isolation_level should be None to use savepoints in sqlite
             options.update({'isolation_level': None})
-            settings.DATABASES[db]['OPTIONS'] = options
-            connections[db].features.uses_savepoints = True
-            if django.VERSION < (1, 4):
-                connections[db].ops = BaseDatabaseOperations()
-            else:
-                connections[db].ops = BaseDatabaseOperations(db)
-        connections[db]._cursor = cursor_wrapper(connections[db]._cursor)
+            settings.DATABASES[db.alias]['OPTIONS'] = options
+            db.features.uses_savepoints = True
+            db.ops = BaseDatabaseOperations(db.alias)
+        db._cursor = cursor_wrapper(db._cursor)
+        db.allow_thread_sharing = True

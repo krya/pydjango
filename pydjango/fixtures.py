@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os
+import types
+from functools import partial
 import pytest
 
 from django.conf import settings
+from django.db import connections
 from django.test.client import Client, RequestFactory
 from django.utils.importlib import import_module
 from django.contrib.auth.models import AnonymousUser
@@ -14,11 +18,25 @@ try:
 except ImportError:
     from django.contrib.auth.models import User
 
+try:
+    from selenium import webdriver
+    selenium_available = True
+except ImportError:
+    selenium_available = False
 
-def _get_django_app(name):
-    if name not in sys.modules:
-        import_module(name)
-    return sys.modules[name]
+from .live_server_helper import LiveServer
+
+
+def _get_django_app(module_name):
+    if module_name not in sys.modules:
+        import_module(module_name)
+    res = sys.modules[module_name]
+    return res
+
+
+def webdriver_get(self, url, prefix=''):
+    url = prefix + url
+    return super(self.__class__, self).get(url)
 
 
 class DjangoAppsMeta(type):
@@ -26,9 +44,8 @@ class DjangoAppsMeta(type):
         klass = type.__new__(cls, clsname, bases, dct)
         for app_name in set(settings.INSTALLED_APPS):
             name = app_name.split('.')[-1]
-            setattr(klass, name, pytest.fixture(scope='session')(
-                lambda self: _get_django_app(app_name)
-            ))
+            # sometimes this doesnt work on python3...
+            setattr(klass, name, pytest.fixture(scope='session')(lambda self: _get_django_app(app_name)))
         return klass
 
 DjangoApps = DjangoAppsMeta('DjangoApps', (object, ), {})
@@ -114,3 +131,21 @@ class Fixtures(DjangoApps):
         """Client instance with logged in admin
         """
         return self.uclient(client, admin_user, rf)
+
+    @pytest.fixture(scope='session')
+    def live_server(self, request):
+        # for db in connections.all():
+        #     db.allow_thread_sharing = True
+        server = LiveServer(os.environ.get(
+            'DJANGO_LIVE_TEST_SERVER_ADDRESS', 'localhost:8081'))
+        request.addfinalizer(server.stop)
+        return server
+
+    @pytest.fixture(scope='session')
+    def driver(self, request, live_server):
+        if not selenium_available:
+            pytest.skip('Selenium is not installed')
+        driver = webdriver.Firefox()
+        driver.get = types.MethodType(partial(webdriver_get, prefix=live_server.url), driver)
+        request.addfinalizer(driver.quit)
+        return driver

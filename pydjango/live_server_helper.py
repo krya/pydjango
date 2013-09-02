@@ -1,10 +1,95 @@
+# -*- coding: utf-8 -*-
+
+import threading
+import errno
+
 import pytest
+
+from django.db import connections
+from django.contrib.staticfiles.handlers import StaticFilesHandler
+from django.test.testcases import _MediaFilesHandler, StoppableWSGIServer, QuietWSGIRequestHandler
+from django.core.handlers.wsgi import WSGIHandler
+from django.core.servers.basehttp import (WSGIRequestHandler, WSGIServer,
+                                          WSGIServerException)
 
 
 def supported():
     import django.test.testcases
 
     return hasattr(django.test.testcases, 'LiveServerThread')
+
+
+class LiveServerThread(threading.Thread):
+    """
+    Thread for running a live http server while the tests are running.
+    """
+
+    def __init__(self, addr):
+        self.is_ready = threading.Event()
+        self.error = None
+        self.possible_ports = []
+        try:
+            self.host, port_ranges = addr.split(':')
+            for port_range in port_ranges.split(','):
+                # A port range can be of either form: '8000' or '8000-8010'.
+                extremes = list(map(int, port_range.split('-')))
+                assert len(extremes) in [1, 2]
+                if len(extremes) == 1:
+                    # Port range of the form '8000'
+                    self.possible_ports.append(extremes[0])
+                else:
+                    # Port range of the form '8000-8010'
+                    for port in range(extremes[0], extremes[1] + 1):
+                        self.possible_ports.append(port)
+        except Exception:
+            raise Exception('Invalid address ("%s") for live server.' % addr)
+        super(LiveServerThread, self).__init__()
+
+    def run(self):
+        """
+        Sets up the live server and databases, and then loops over handling
+        http requests.
+        """
+        try:
+            # Create the handler for serving static and media files
+            handler = StaticFilesHandler(_MediaFilesHandler(WSGIHandler()))
+
+            # Go through the list of possible ports, hoping that we can find
+            # one that is free to use for the WSGI server.
+            for index, port in enumerate(self.possible_ports):
+                try:
+                    self.httpd = StoppableWSGIServer(
+                        (self.host, port), QuietWSGIRequestHandler)
+                except WSGIServerException as e:
+                    if (index + 1 < len(self.possible_ports) and
+                        hasattr(e.args[0], 'errno') and
+                            e.args[0].errno == errno.EADDRINUSE):
+                        # This port is already in use, so we go on and try with
+                        # the next one in the list.
+                        continue
+                    else:
+                        # Either none of the given ports are free or the error
+                        # is something else than "Address already in use". So
+                        # we let that error bubble up to the main thread.
+                        raise
+                else:
+                    # A free port was found.
+                    self.port = port
+                    break
+
+            self.httpd.set_app(handler)
+            self.is_ready.set()
+            self.httpd.serve_forever()
+        except Exception as e:
+            self.error = e
+            self.is_ready.set()
+
+    def join(self, timeout=None):
+        if hasattr(self, 'httpd'):
+            # Stop the WSGI server
+            self.httpd.shutdown()
+            self.httpd.server_close()
+        super(LiveServerThread, self).join(timeout)
 
 
 class LiveServer(object):
@@ -16,25 +101,7 @@ class LiveServer(object):
     """
 
     def __init__(self, addr):
-        try:
-            from django.test.testcases import LiveServerThread
-        except ImportError:
-            pytest.skip('live_server tests not supported in Django < 1.4')
-        from django.db import connections
-
-        connections_override = {}
-        for conn in connections.all():
-            # If using in-memory sqlite databases, pass the connections to
-            # the server thread.
-            if (conn.settings_dict['ENGINE'] == 'django.db.backends.sqlite3'
-                    and conn.settings_dict['NAME'] == ':memory:'):
-                # Explicitly enable thread-shareability for this connection
-                conn.allow_thread_sharing = True
-                connections_override[conn.alias] = conn
-
-        host, possible_ports = parse_addr(addr)
-        self.thread = LiveServerThread(host, possible_ports,
-                                       connections_override)
+        self.thread = LiveServerThread(addr)
         self.thread.daemon = True
         self.thread.start()
         self.thread.is_ready.wait()
@@ -52,38 +119,11 @@ class LiveServer(object):
     def __unicode__(self):
         return self.url
 
+    __str__ = __unicode__
+
     def __repr__(self):
-        return '<LiveServer listening at %s>' % unicode(self)
+        return '<LiveServer listening at %s>' % self
 
     def __add__(self, other):
         # Support string concatenation
-        return unicode(self) + other
-
-
-def parse_addr(specified_address):
-    """Parse the --liveserver argument into a host/IP address and port range"""
-    # This code is based on
-    # django.test.testcases.LiveServerTestCase.setUpClass
-
-    # The specified ports may be of the form '8000-8010,8080,9200-9300'
-    # i.e. a comma-separated list of ports or ranges of ports, so we break
-    # it down into a detailed list of all possible ports.
-    possible_ports = []
-    try:
-        host, port_ranges = specified_address.split(':')
-        for port_range in port_ranges.split(','):
-            # A port range can be of either form: '8000' or '8000-8010'.
-            extremes = map(int, port_range.split('-'))
-            assert len(extremes) in [1, 2]
-            if len(extremes) == 1:
-                # Port range of the form '8000'
-                possible_ports.append(extremes[0])
-            else:
-                # Port range of the form '8000-8010'
-                for port in range(extremes[0], extremes[1] + 1):
-                    possible_ports.append(port)
-    except Exception:
-        raise Exception(
-            'Invalid address ("%s") for live server.' % specified_address)
-
-    return (host, possible_ports)
+        return self + other

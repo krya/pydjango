@@ -2,7 +2,7 @@ About
 -----
 This is a `py.test <http://pytest.org/>`_ plugin to help you test your django application.
 
-supports python 2.6-3.2 and django 1.3-1.5
+supports python 2.6-3.2 and django 1.4-1.5
 
 .. image:: https://travis-ci.org/krya/pydjango.png
    :target: https://travis-ci.org/krya/pydjango

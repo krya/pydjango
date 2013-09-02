@@ -9,10 +9,12 @@ SETTINGS = {
             'NAME': 'pydjango',
         }
     },
-    'SITE_ID':1,
-    'SECRET_KEY' : '*_1cc9n+lc@l$#hmd-)#(@0-i=@jbzb2zkmbv8nvf)qodq37^l',
-    'ROOT_URLCONF' : 'tests.urls',
-    'INSTALLED_APPS' : (
+    'SITE_ID': 1,
+    'SECRET_KEY': '*_1cc9n+lc@l$#hmd-)#(@0-i=@jbzb2zkmbv8nvf)qodq37^l',
+    'ROOT_URLCONF': 'tests.urls',
+    'STATIC_URL': '/static/',
+    'MEDIA_URL': '/media/',
+    'INSTALLED_APPS': (
         'django.contrib.auth',
         'django.contrib.contenttypes',
         'django.contrib.sessions',
@@ -21,8 +23,7 @@ SETTINGS = {
 }
 
 
-
-def pytest_configure():
+def pytest_configure(config, __multicall__):
     from django.conf import settings
     if not settings.configured:
         if 'TRAVIS' in os.environ:
