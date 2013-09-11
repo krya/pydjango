@@ -10,22 +10,26 @@ import pytest
 from django.conf import settings
 from django.db import connections, transaction
 from django.core import management
-from django.test.testcases import (TestCase,
-                                   disable_transaction_methods,
-                                    restore_transaction_methods)
+from django.test.testcases import (disable_transaction_methods,
+                                   restore_transaction_methods)
 from django.test.simple import DjangoTestSuiteRunner
 from django.core.signals import request_finished, got_request_exception
-from django.db import close_connection, _rollback_on_exception
+from django.db import close_connection
 
 from .patches import Module, SUnitTestCase
 from .db_reuse import monkey_patch_creation_for_db_reuse, wrap_database
 from .fixtures import Fixtures
-from .utils import nop, is_transaction_test
+from .utils import is_transaction_test
 
 
 # dont do any database operation if there is a liveserver running
 request_finished.disconnect(close_connection)
-got_request_exception.disconnect(_rollback_on_exception)
+try:
+    # removed from 1.6
+    from django.db import _rollback_on_exception
+    got_request_exception.disconnect(_rollback_on_exception)
+except ImportError:
+    pass
 
 
 class DjangoPlugin(Fixtures):
