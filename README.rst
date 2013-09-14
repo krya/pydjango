@@ -81,6 +81,7 @@ without importing it in every test function: ::
 
 
 You can even use model's name defined in your project as a fixture: ::
+
     def test_my_model(User):
         assert User.objects.count() == 0
 
