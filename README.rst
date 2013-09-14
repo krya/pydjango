@@ -71,13 +71,18 @@ Available fixtures
     a client instance with logged in admin_user
 
 both `uclient` and `aclient` are logged in using ``django.contrib.auth.backends.ModelBackend``.
-There are also imported apps available as fixtures named by subpackage name. For instance if you have
+
+There are also imported apps available as fixtures named by subpackage name. So for instance if you have
 `django.contrib.auth` in your `INSTALLED_APPS` you can use that package in your tests
 without importing it in every test function: ::
 
-    test_smth(auth):
+    def test_smth(auth):
         assert auth.models.User.objects.count() == 0
 
+
+You can even use model's name defined in your project as a fixture: ::
+    def test_my_model(User):
+        assert User.objects.count() == 0
 
 
 Comman line options

@@ -7,7 +7,7 @@ from functools import partial
 import pytest
 
 from django.conf import settings
-from django.db import connections
+from django.db import models
 from django.test.client import Client, RequestFactory
 from django.utils.importlib import import_module
 from django.contrib.auth.models import AnonymousUser
@@ -33,12 +33,18 @@ def webdriver_get(self, url, prefix=''):
 
 
 def django_app(name):
-    def inner(self):
+    def wrapper(self):
         if name not in sys.modules:
             import_module(name)
         res = sys.modules[name]
         return res
-    return inner
+    return wrapper
+
+
+def django_model(model):
+    def wrapper(self):
+        return model
+    return wrapper
 
 
 class DjangoAppsMeta(type):
@@ -47,6 +53,10 @@ class DjangoAppsMeta(type):
         for app_name in set(settings.INSTALLED_APPS):
             name = app_name.split('.')[-1]
             setattr(klass, name, pytest.fixture(scope='session')(django_app(app_name)))
+
+        for model in models.get_models():
+            name = model._meta.object_name
+            setattr(klass, name, pytest.fixture(scope='session')(django_model(model)))
         return klass
 
 DjangoApps = DjangoAppsMeta('DjangoApps', (object, ), {})
