@@ -27,16 +27,18 @@ except ImportError:
 from .live_server_helper import LiveServer
 
 
-def _get_django_app(module_name):
-    if module_name not in sys.modules:
-        import_module(module_name)
-    res = sys.modules[module_name]
-    return res
-
-
 def webdriver_get(self, url, prefix=''):
     url = prefix + url
     return super(self.__class__, self).get(url)
+
+
+def django_app(name):
+    def inner(self):
+        if name not in sys.modules:
+            import_module(name)
+        res = sys.modules[name]
+        return res
+    return inner
 
 
 class DjangoAppsMeta(type):
@@ -44,8 +46,7 @@ class DjangoAppsMeta(type):
         klass = type.__new__(cls, clsname, bases, dct)
         for app_name in set(settings.INSTALLED_APPS):
             name = app_name.split('.')[-1]
-            # sometimes this doesnt work on python3...
-            setattr(klass, name, pytest.fixture(scope='session')(lambda self: _get_django_app(app_name)))
+            setattr(klass, name, pytest.fixture(scope='session')(django_app(app_name)))
         return klass
 
 DjangoApps = DjangoAppsMeta('DjangoApps', (object, ), {})
