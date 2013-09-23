@@ -44,6 +44,12 @@ def pytest_configure(config, __multicall__):
             __multicall__.execute()
     try:
         from .django_plugin import DjangoPlugin
-        config.pluginmanager.register(DjangoPlugin(config), '_pydjango')
+        manager = config.pluginmanager
+        plugin = DjangoPlugin(config)
+        manager.register(plugin, '_pydjango')
+        # insert new upload right after main plugin so conftest could override fixtures
+        main_index = manager._plugins.index(manager.getplugin('pydjango'))
+        manager._plugins.pop(manager._plugins.index(plugin))
+        manager._plugins.insert(main_index + 1, plugin)
     except ImportError as e:
         raise pytest.UsageError('Failed to import project settings. (%s)' % str(e))
