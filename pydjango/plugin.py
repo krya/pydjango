@@ -16,6 +16,9 @@ except ImportError:
     ENVIRONMENT_VARIABLE = "DJANGO_SETTINGS_MODULE"
 
 
+DEFAULT_LIVE_SERVER = 'django.test.testcases.StoppableWSGIServer'
+
+
 def pytest_addoption(parser):
     group = parser.getgroup('pydjango')
     group._addoption('--django-settings',
@@ -24,6 +27,9 @@ def pytest_addoption(parser):
     group._addoption('--create-db',
                      action='store_true', dest='create_db', default=False,
                      help='Force database creation')
+    group._addoption('--liveserver-class',
+                     action='store', type='string', dest='liveserver_class', default=DEFAULT_LIVE_SERVER,
+                     help='Set live server class to serve requests. default: %s' % DEFAULT_LIVE_SERVER)
     group._addoption('--skip-trans',
                      action='store_true', dest='skip_trans', default=False,
                      help='Skip transactional tests')

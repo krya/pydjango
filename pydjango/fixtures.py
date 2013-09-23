@@ -145,9 +145,7 @@ class Fixtures(DjangoApps):
 
     @pytest.fixture(scope='session')
     def live_server(self, request):
-        # for db in connections.all():
-        #     db.allow_thread_sharing = True
-        server = LiveServer(os.environ.get(
+        server = LiveServer(self.live_server_class, os.environ.get(
             'DJANGO_LIVE_TEST_SERVER_ADDRESS', 'localhost:8081'))
         request.addfinalizer(server.stop)
         return server

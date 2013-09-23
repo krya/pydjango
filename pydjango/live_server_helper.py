@@ -24,8 +24,9 @@ class LiveServerThread(threading.Thread):
     Thread for running a live http server while the tests are running.
     """
 
-    def __init__(self, addr):
+    def __init__(self, server_class, addr):
         self.is_ready = threading.Event()
+        self.server_class = server_class
         self.error = None
         self.possible_ports = []
         try:
@@ -58,8 +59,18 @@ class LiveServerThread(threading.Thread):
             # one that is free to use for the WSGI server.
             for index, port in enumerate(self.possible_ports):
                 try:
-                    self.httpd = StoppableWSGIServer(
-                        (self.host, port), QuietWSGIRequestHandler)
+                    if hasattr(self.server_class, 'set_app'):
+                        # should set handlers specified above a bit later as
+                        # this one takes QuietWSGIRequestHandler
+                        self.httpd = self.server_class(
+                            (self.host, port),
+                            QuietWSGIRequestHandler
+                        )
+                    else:
+                        self.httpd = self.server_class(
+                            (self.host, port),
+                            handler,
+                        )
                 except WSGIServerException as e:
                     if (index + 1 < len(self.possible_ports) and
                         hasattr(e.args[0], 'errno') and
@@ -76,8 +87,8 @@ class LiveServerThread(threading.Thread):
                     # A free port was found.
                     self.port = port
                     break
-
-            self.httpd.set_app(handler)
+            if hasattr(self.httpd, 'set_app'):
+                self.httpd.set_app(handler)
             self.is_ready.set()
             self.httpd.serve_forever()
         except Exception as e:
@@ -87,8 +98,11 @@ class LiveServerThread(threading.Thread):
     def join(self, timeout=None):
         if hasattr(self, 'httpd'):
             # Stop the WSGI server
-            self.httpd.shutdown()
-            self.httpd.server_close()
+            if hasattr(self.httpd, 'shutdown'):
+                self.httpd.shutdown()
+                self.httpd.server_close()
+            else:
+                self.httpd.stop()
         super(LiveServerThread, self).join(timeout)
 
 
@@ -100,8 +114,8 @@ class LiveServer(object):
     and stopping however.
     """
 
-    def __init__(self, addr):
-        self.thread = LiveServerThread(addr)
+    def __init__(self, server_class, addr):
+        self.thread = LiveServerThread(server_class, addr)
         self.thread.daemon = True
         self.thread.start()
         self.thread.is_ready.wait()
@@ -110,7 +124,7 @@ class LiveServer(object):
 
     def stop(self):
         """Stop the server"""
-        self.thread.join()
+        self.thread.join(1)
 
     @property
     def url(self):

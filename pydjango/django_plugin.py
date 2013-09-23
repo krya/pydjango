@@ -15,6 +15,7 @@ from django.test.testcases import (disable_transaction_methods,
 from django.test.simple import DjangoTestSuiteRunner
 from django.core.signals import request_finished, got_request_exception
 from django.db import close_connection
+from django.utils.importlib import import_module
 
 from .patches import Module, SUnitTestCase
 from .db_reuse import monkey_patch_creation_for_db_reuse, wrap_database
@@ -38,6 +39,14 @@ class DjangoPlugin(Fixtures):
         self.config = config
         self.check_markers()
         self.configure()
+        try:
+            self.live_server_class = import_module(config.option.liveserver_class)
+        except ImportError:
+            liveserver_class = config.option.liveserver_class.split('.')
+            self.live_server_class = getattr(
+                import_module('.'.join(liveserver_class[:-1])),
+                liveserver_class[-1]
+            )
 
     def check_markers(self):
         self.skip_trans = False
