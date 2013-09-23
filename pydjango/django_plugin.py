@@ -14,7 +14,7 @@ from django.test.testcases import (disable_transaction_methods,
                                    restore_transaction_methods)
 from django.test.simple import DjangoTestSuiteRunner
 from django.core.signals import request_finished, request_started, got_request_exception
-from django.db import close_connection, close_old_connections
+from django.db import close_connection
 from django.utils.importlib import import_module
 
 from .patches import Module, SUnitTestCase
@@ -25,8 +25,14 @@ from .utils import is_transaction_test
 
 # dont do any database operation if there is a liveserver running
 request_finished.disconnect(close_connection)
-request_started.disconnect(close_old_connections)
-request_finished.disconnect(close_old_connections)
+try:
+    # new in 1.6
+    from django.db import close_old_connections
+    request_started.disconnect(close_old_connections)
+    request_finished.disconnect(close_old_connections)
+except ImportError:
+    pass
+
 try:
     # removed from 1.6
     from django.db import _rollback_on_exception
