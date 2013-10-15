@@ -13,7 +13,7 @@ def test_no_savepoints(request):
 
 
 def test_function_has_savepoints(request):
-    User.objects.count()
+    assert User.objects.count() == 0
     assert request.node.savepoints
     for node in request.node.listchain():
         if node != request.node:
@@ -24,12 +24,15 @@ class TestClassLazySavepoint(object):
 
     @classmethod
     def setup_class(cls):
+        assert User.objects.count() == 0
         User.objects.create(username='test', password='pass')
 
     def setup_method(self, method):
+        assert User.objects.count() == 1
         User.objects.create(username='test2', password='pass')
 
     def test_lazy_method(self, request):
+        assert User.objects.count() == 2
         assert request.node.savepoints
         for node in request.node.listchain():
             if isinstance(node, (Function, Class, Instance)):

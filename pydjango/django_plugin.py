@@ -13,32 +13,12 @@ from django.core import management
 from django.test.testcases import (disable_transaction_methods,
                                    restore_transaction_methods)
 from django.test.simple import DjangoTestSuiteRunner
-from django.core.signals import request_finished, request_started, got_request_exception
-from django.db import close_connection
 from django.utils.importlib import import_module
 
 from .patches import Module, SUnitTestCase
 from .db_reuse import monkey_patch_creation_for_db_reuse, wrap_database
 from .fixtures import Fixtures
-from .utils import is_transaction_test
-
-
-# dont do any database operation if there is a liveserver running
-request_finished.disconnect(close_connection)
-try:
-    # new in 1.6
-    from django.db import close_old_connections
-    request_started.disconnect(close_old_connections)
-    request_finished.disconnect(close_old_connections)
-except ImportError:
-    pass
-
-try:
-    # removed from 1.6
-    from django.db import _rollback_on_exception
-    got_request_exception.disconnect(_rollback_on_exception)
-except ImportError:
-    pass
+from .utils import is_transaction_test, nop
 
 
 class DjangoPlugin(Fixtures):
@@ -47,6 +27,7 @@ class DjangoPlugin(Fixtures):
         self.config = config
         self.check_markers()
         self.configure()
+        self.original_connection_close = {}
         try:
             self.live_server_class = import_module(config.option.liveserver_class)
         except ImportError:
@@ -103,6 +84,8 @@ class DjangoPlugin(Fixtures):
         for db in connections:
             transaction.enter_transaction_management(using=db)
             transaction.managed(True, using=db)
+            self.original_connection_close[db] =connections[db].close
+            connections[db].close = nop
         disable_transaction_methods()
 
     def pytest_sessionfinish(self, session):
@@ -115,6 +98,8 @@ class DjangoPlugin(Fixtures):
                 transaction.managed(False, using=db)
             except:
                 pass
+            if self.original_connection_close:
+                connections[db].close = self.original_connection_close[db]
 
     @pytest.mark.trylast
     def pytest_collection_modifyitems(self, items):

@@ -10,6 +10,8 @@ from django.conf import settings
 from django.db import connections, transaction
 from django.db.backends.sqlite3.base import DatabaseOperations as BDO
 
+from .utils import nop
+
 
 def can_support_db_reuse(connection):
     """Return whether it makes any sense to use REUSE_DB with the backend of a connection."""
@@ -117,3 +119,4 @@ def wrap_database():
             db.ops = BaseDatabaseOperations(db.alias)
         db._cursor = cursor_wrapper(db._cursor)
         db.allow_thread_sharing = True
+        db.abort = nop

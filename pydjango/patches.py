@@ -23,10 +23,10 @@ class SavepointMixin(object):
         return Instance(*args, **kwargs)
 
     def schedule_savepoints(self):
-        for db in connections:
-            if not hasattr(connections[db], 'setup_savepoints'):
-                connections[db].setup_savepoints = []
-            connections[db].setup_savepoints.append(self)
+        for db in connections.all():
+            if not hasattr(db, 'setup_savepoints'):
+                db.setup_savepoints = []
+            db.setup_savepoints.append(self)
 
     def rollback_savepoints(self):
         for db in connections:
