@@ -14,9 +14,9 @@ from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import login
 try:
     from django.contrib.auth import get_user_model
-    User = get_user_model()
 except ImportError:
     from django.contrib.auth.models import User
+    get_user_model = lambda: User
 
 try:
     from selenium import webdriver
@@ -84,10 +84,11 @@ class Fixtures(DjangoApps):
     @pytest.fixture()
     def test_user(self):
         """User instance"""
+        cls = get_user_model()
         try:
-            user = User.objects.get(username='test')
-        except User.DoesNotExist:
-            user = User.objects.create_user(
+            user = cls.objects.get(username='test')
+        except cls.DoesNotExist:
+            user = cls.objects.create_user(
                 username='test',
                 email='test@example.com',
                 password='test')
@@ -95,10 +96,11 @@ class Fixtures(DjangoApps):
 
     @pytest.fixture()
     def admin_user(self):
+        cls = get_user_model()
         try:
-            admin = User.objects.get(username='admin')
-        except User.DoesNotExist:
-            admin = User.objects.create_superuser(
+            admin = cls.objects.get(username='admin')
+        except cls.DoesNotExist:
+            admin = cls.objects.create_superuser(
                 username='admin',
                 email='admin@example.com',
                 password='admin')
