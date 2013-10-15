@@ -120,3 +120,4 @@ def wrap_database():
         db._cursor = cursor_wrapper(db._cursor)
         db.allow_thread_sharing = True
         db.abort = nop
+        db.close_if_unusable_or_obsolete = nop
