@@ -152,10 +152,12 @@ class Fixtures(DjangoApps):
         request.addfinalizer(server.stop)
         return server
 
-    @pytest.fixture(scope='session')
+    @pytest.fixture
     def driver(self, request, live_server):
         if not selenium_available:
             pytest.skip('Selenium is not installed')
+        request.applymarker(pytest.mark.slow)
+        request.applymarker(pytest.mark.selenium)
         driver = webdriver.Firefox()
         driver.get = types.MethodType(partial(webdriver_get, prefix=live_server.url), driver)
         request.addfinalizer(driver.quit)
