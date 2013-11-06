@@ -9,8 +9,7 @@ from django.db import connections
 from django.contrib.staticfiles.handlers import StaticFilesHandler
 from django.test.testcases import _MediaFilesHandler, StoppableWSGIServer, QuietWSGIRequestHandler
 from django.core.handlers.wsgi import WSGIHandler
-from django.core.servers.basehttp import (WSGIRequestHandler, WSGIServer,
-                                          WSGIServerException)
+from django.core.servers.basehttp import (WSGIRequestHandler, WSGIServer)
 
 
 def supported():
@@ -58,35 +57,21 @@ class LiveServerThread(threading.Thread):
             # Go through the list of possible ports, hoping that we can find
             # one that is free to use for the WSGI server.
             for index, port in enumerate(self.possible_ports):
-                try:
-                    if hasattr(self.server_class, 'set_app'):
-                        # should set handlers specified above a bit later as
-                        # this one takes QuietWSGIRequestHandler
-                        self.httpd = self.server_class(
-                            (self.host, port),
-                            QuietWSGIRequestHandler
-                        )
-                    else:
-                        self.httpd = self.server_class(
-                            (self.host, port),
-                            handler,
-                        )
-                except WSGIServerException as e:
-                    if (index + 1 < len(self.possible_ports) and
-                        hasattr(e.args[0], 'errno') and
-                            e.args[0].errno == errno.EADDRINUSE):
-                        # This port is already in use, so we go on and try with
-                        # the next one in the list.
-                        continue
-                    else:
-                        # Either none of the given ports are free or the error
-                        # is something else than "Address already in use". So
-                        # we let that error bubble up to the main thread.
-                        raise
+                if hasattr(self.server_class, 'set_app'):
+                    # should set handlers specified above a bit later as
+                    # this one takes QuietWSGIRequestHandler
+                    self.httpd = self.server_class(
+                        (self.host, port),
+                        QuietWSGIRequestHandler
+                    )
                 else:
-                    # A free port was found.
-                    self.port = port
-                    break
+                    self.httpd = self.server_class(
+                        (self.host, port),
+                        handler,
+                    )
+                # A free port was found.
+                self.port = port
+                break
             if hasattr(self.httpd, 'set_app'):
                 self.httpd.set_app(handler)
             self.is_ready.set()
