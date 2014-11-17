@@ -27,6 +27,9 @@ def pytest_addoption(parser):
     group._addoption('--create-db',
                      action='store_true', dest='create_db', default=False,
                      help='Force database creation')
+    group._addoption('--migrate',
+                     action='store_true', dest='migrate', default=False,
+                     help='sync db and run migrations')
     group._addoption('--liveserver-class',
                      action='store', type='string', dest='liveserver_class', default=DEFAULT_LIVE_SERVER,
                      help='Set live server class to serve requests. default: %s' % DEFAULT_LIVE_SERVER)

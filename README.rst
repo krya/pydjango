@@ -93,3 +93,5 @@ Comman line options
     Force database creation. Destroys db if it exists from previous run
 * `--skip-trans`
     skip all `transactional` tests (LiveServerTestCase or TransactionTestCase)
+* `--migrate`
+    runs syncdb and south migrations (may be slow in big projects so let user decide). does nothing when `--create-db` used

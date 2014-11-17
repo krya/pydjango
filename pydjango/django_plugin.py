@@ -49,26 +49,19 @@ class DjangoPlugin(Fixtures):
         management.get_commands()  # load all commands first
         is_sqlite = settings.DATABASES.get('default', {}).get('ENGINE', '')\
                             .endswith('sqlite3')
-        try:
-            wrap_database()
-            db_postfix = getattr(self.config, 'slaveinput', {}).get("slaveid", "")
-            monkey_patch_creation_for_db_reuse(db_postfix if not is_sqlite else None,
-                                               force=self.config.option.create_db)
-            if 'south' in settings.INSTALLED_APPS:
-                from south.management.commands import patch_for_test_db_setup
-                if is_sqlite:
-                    # dont use migration on in-memory sqlite as its useless
-                    management._commands['syncdb'] = 'django.core'
-                    self.runner.setup_databases()
-                else:
-                    patch_for_test_db_setup()
-                    self.runner.setup_databases()
-                    management.call_command('migrate', verbosity=0)
-            else:
-                self.runner.setup_databases()
-
-        except (SystemExit, Exception):
-            raise pytest.UsageError(sys.exc_info()[1])
+        wrap_database()
+        db_postfix = getattr(self.config, 'slaveinput', {}).get("slaveid", "")
+        monkey_patch_creation_for_db_reuse(
+            db_postfix if not is_sqlite else None,
+            force=self.config.option.create_db
+        )
+        migrate_db = self.config.option.migrate or self.config.option.create_db
+        if 'south' in settings.INSTALLED_APPS:
+            from south.management.commands import patch_for_test_db_setup
+            patch_for_test_db_setup()
+        self.runner.setup_databases()
+        if migrate_db:
+            management.call_command('migrate', verbosity=0)
 
     def pytest_pycollect_makemodule(self, path, parent):
         return Module(path, parent)
