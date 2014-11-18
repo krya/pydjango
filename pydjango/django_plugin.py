@@ -59,9 +59,12 @@ class DjangoPlugin(Fixtures):
         if 'south' in settings.INSTALLED_APPS:
             from south.management.commands import patch_for_test_db_setup
             patch_for_test_db_setup()
-        self.runner.setup_databases()
-        if migrate_db and 'south' in settings.INSTALLED_APPS:
-            management.call_command('migrate', verbosity=0)
+        try:
+            self.runner.setup_databases()
+            if migrate_db:
+                management.call_command('migrate', verbosity=0)
+        except Exception:
+            raise pytest.UsageError(sys.exc_info()[1])
 
     def pytest_pycollect_makemodule(self, path, parent):
         return Module(path, parent)
