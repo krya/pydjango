@@ -59,12 +59,13 @@ class DjangoPlugin(Fixtures):
             force=self.config.option.create_db
         )
         migrate_db = self.config.option.migrate or self.config.option.create_db
-        if 'south' in settings.INSTALLED_APPS:
+        can_migrate = 'south' in settings.INSTALLED_APPS
+        if can_migrate:
             from south.management.commands import patch_for_test_db_setup
             patch_for_test_db_setup()
         try:
             self.runner.setup_databases()
-            if migrate_db:
+            if migrate_db and can_migrate:
                 management.call_command('migrate', verbosity=self.config.option.verbose)
         except Exception:
             raise pytest.UsageError(sys.exc_info()[1])
