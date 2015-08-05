@@ -29,7 +29,7 @@ from .live_server_helper import LiveServer
 
 def webdriver_get(self, url, prefix=''):
     url = prefix + url
-    return super(self.__class__, self).get(url)
+    return self.__class__.get(self, url)
 
 
 def django_app(name):
