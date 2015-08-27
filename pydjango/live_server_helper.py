@@ -2,6 +2,7 @@
 
 import threading
 import errno
+import socket
 
 import pytest
 
@@ -45,6 +46,20 @@ class LiveServerThread(threading.Thread):
             raise Exception('Invalid address ("%s") for live server.' % addr)
         super(LiveServerThread, self).__init__()
 
+    def start_http_server(self, port, handler):
+        try:
+            return self.server_class((self.host, port), handler)
+        except socket.error as e:
+            if e.errno == errno.EADDRINUSE:
+                # This port is already in use, so we go on and try with
+                # the next one in the list.
+                return
+            else:
+                # Either none of the given ports are free or the error
+                # is something else than "Address already in use". So
+                # we let that error bubble up to the main thread.
+                raise
+
     def run(self):
         """
         Sets up the live server and databases, and then loops over handling
@@ -60,15 +75,11 @@ class LiveServerThread(threading.Thread):
                 if hasattr(self.server_class, 'set_app'):
                     # should set handlers specified above a bit later as
                     # this one takes QuietWSGIRequestHandler
-                    self.httpd = self.server_class(
-                        (self.host, port),
-                        QuietWSGIRequestHandler
-                    )
+                    self.httpd = self.start_http_server(port, QuietWSGIRequestHandler)
                 else:
-                    self.httpd = self.server_class(
-                        (self.host, port),
-                        handler,
-                    )
+                    self.httpd = self.start_http_server(port, handler)
+                if self.httpd is None:
+                    continue
                 # A free port was found.
                 self.port = port
                 break

@@ -148,7 +148,7 @@ class Fixtures(DjangoApps):
     @pytest.fixture(scope='session')
     def live_server(self, request):
         server = LiveServer(self.live_server_class, os.environ.get(
-            'DJANGO_LIVE_TEST_SERVER_ADDRESS', 'localhost:8081'))
+            'DJANGO_LIVE_TEST_SERVER_ADDRESS', 'localhost:8081-8089'))
         request.addfinalizer(server.stop)
         return server
 
