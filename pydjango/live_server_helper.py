@@ -109,9 +109,10 @@ class LiveServer(object):
     request the ``live_server`` fixture.  The fixture handles creation
     and stopping however.
     """
+    server_thread = LiveServerThread
 
     def __init__(self, server_class, addr):
-        self.thread = LiveServerThread(server_class, addr)
+        self.thread = self.server_thread(server_class, addr)
         self.thread.daemon = True
         self.thread.start()
         self.thread.is_ready.wait()
