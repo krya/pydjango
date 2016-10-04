@@ -4,13 +4,9 @@ import threading
 import errno
 import socket
 
-import pytest
-
-from django.db import connections
 from django.contrib.staticfiles.handlers import StaticFilesHandler
-from django.test.testcases import _MediaFilesHandler, StoppableWSGIServer, QuietWSGIRequestHandler
+from django.test.testcases import _MediaFilesHandler, QuietWSGIRequestHandler
 from django.core.handlers.wsgi import WSGIHandler
-from django.core.servers.basehttp import (WSGIRequestHandler, WSGIServer)
 
 
 def supported():
