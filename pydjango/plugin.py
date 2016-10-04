@@ -9,6 +9,7 @@ import pytest
 
 
 try:
+    import django
     from django.conf import ENVIRONMENT_VARIABLE, settings
     DJANGO_INSTALLED = True
 except ImportError:
@@ -44,13 +45,16 @@ def pytest_addoption(parser):
 def pytest_configure(config, __multicall__):
     if not DJANGO_INSTALLED:
         return
-    settings_module = config.option.ds or config.getini(ENVIRONMENT_VARIABLE) or\
-                      os.environ.get(ENVIRONMENT_VARIABLE)
+    settings_module = config.option.ds or \
+        config.getini(ENVIRONMENT_VARIABLE) or \
+        os.environ.get(ENVIRONMENT_VARIABLE)
     if settings_module:
         os.environ[ENVIRONMENT_VARIABLE] = settings_module
     else:
         if not settings.configured:
             __multicall__.execute()
+    if hasattr(django, 'setup'):
+        django.setup()
     try:
         from .django_plugin import DjangoPlugin
         manager = config.pluginmanager
