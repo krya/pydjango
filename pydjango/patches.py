@@ -30,12 +30,15 @@ class SavepointMixin(object):
 
     def rollback_savepoints(self):
         for db in connections:
+            conn = connections[db]
             try:
-                connections[db].setup_savepoints.pop(connections[db].setup_savepoints.index(self))
+                conn.setup_savepoints.pop(conn.setup_savepoints.index(self))
             except (ValueError, AttributeError):
                 pass
             if self.savepoints:
+                conn.in_atomic_block = False
                 transaction.savepoint_rollback(self.savepoints[db], using=db)
+                conn.in_atomic_block = True
 
     def setup(self, *args, **kwargs):
         if self.need_savepoint:

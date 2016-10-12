@@ -38,7 +38,7 @@ def test_database_exists_from_previous_run(connection):
         connection.settings_dict['NAME'] = orig_db_name
 
 
-def create_test_db(self, verbosity=1, autoclobber=False, serialize=False):
+def create_test_db(self, verbosity=1, autoclobber=False, serialize=False, keepdb=False):
     """
     This method is a monkey patched version of create_test_db that
     will not actually create a new database, but just reuse the

@@ -4,16 +4,14 @@ import sys
 
 from itertools import groupby
 import unittest
+from importlib import import_module
 
 import pytest
 
 from django.conf import settings
 from django.db import connections, transaction
 from django.core import management
-from django.test.testcases import (disable_transaction_methods,
-                                   restore_transaction_methods)
-from django.test.simple import DjangoTestSuiteRunner
-from django.utils.importlib import import_module
+from django.test.runner import DiscoverRunner
 
 from .patches import Module, SUnitTestCase
 from .db_reuse import monkey_patch_creation_for_db_reuse, wrap_database
@@ -44,7 +42,7 @@ class DjangoPlugin(Fixtures):
 
     def configure(self):
 
-        self.runner = DjangoTestSuiteRunner(
+        self.runner = DiscoverRunner(
             interactive=False,
             verbosity=self.config.option.verbose
         )
@@ -82,22 +80,20 @@ class DjangoPlugin(Fixtures):
                 middlewares.append(mid)
         settings.MIDDLEWARE_CLASSES = middlewares
         for db in connections:
-            transaction.enter_transaction_management(using=db)
-            transaction.managed(True, using=db)
-            self.original_connection_close[db] = connections[db].close
-            connections[db].close = nop
-        disable_transaction_methods()
+            conn = connections[db]
+            conn.set_autocommit(
+                False, force_begin_transaction_with_broken_autocommit=True
+            )
+            conn.in_atomic_block = True
+            self.original_connection_close[db] = conn.close
+            conn.close = nop
 
     def pytest_sessionfinish(self, session):
         self.runner.teardown_test_environment()
-        restore_transaction_methods()
         for db in connections:
+            connections[db].in_atomic_block = False
             transaction.rollback(using=db)
-            try:
-                transaction.leave_transaction_management(using=db)
-                transaction.managed(False, using=db)
-            except:
-                pass
+            connections[db].in_atomic_block = True
             if self.original_connection_close:
                 connections[db].close = self.original_connection_close[db]
 
@@ -150,3 +146,6 @@ class DjangoPlugin(Fixtures):
     def pytest_runtest_setup(self, item):
         if 'transaction' in item.keywords and self.skip_trans:
             pytest.skip('excluding transaction test')
+
+    def pytest_runtest_call(self, item, __multicall__):
+        return __multicall__.execute()

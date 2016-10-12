@@ -4,12 +4,13 @@ import sys
 import os
 import types
 from functools import partial
+from importlib import import_module
 import pytest
 
+from django.apps import apps
 from django.conf import settings
 from django.db import models
 from django.test.client import Client, RequestFactory
-from django.utils.importlib import import_module
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import login
 try:
@@ -53,8 +54,7 @@ class DjangoAppsMeta(type):
         for app_name in set(settings.INSTALLED_APPS):
             name = app_name.split('.')[-1]
             setattr(klass, name, pytest.fixture(scope='session')(django_app(app_name)))
-
-        for model in models.get_models():
+        for model in apps.get_models():
             name = model._meta.object_name
             setattr(klass, name, pytest.fixture(scope='session')(django_model(model)))
         return klass
