@@ -117,7 +117,7 @@ def wrap_database():
             settings.DATABASES[db.alias]['OPTIONS'] = options
             db.features.uses_savepoints = True
             db.ops = BaseDatabaseOperations(db.alias)
-        db._cursor = cursor_wrapper(db._cursor)
+        # db._cursor = cursor_wrapper(db._cursor)
         db.allow_thread_sharing = True
         db.abort = nop
         db.close_if_unusable_or_obsolete = nop

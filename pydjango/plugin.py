@@ -41,20 +41,24 @@ def pytest_addoption(parser):
                   'Django settings module to use by pydjango.')
 
 
-@pytest.mark.tryfirst
+@pytest.hookimpl(tryfirst=True)
 def pytest_configure(config, __multicall__):
     if not DJANGO_INSTALLED:
         return
+
+    config.addinivalue_line(
+        "markers",
+        "selenium: this test is running with a selenium browser")
+    config.addinivalue_line(
+        "markers",
+        "slow: expected to run slow (e.g. spawning a browser underneath for selenium tests)"
+    )
     settings_module = config.option.ds or \
         config.getini(ENVIRONMENT_VARIABLE) or \
         os.environ.get(ENVIRONMENT_VARIABLE)
     if settings_module:
         os.environ[ENVIRONMENT_VARIABLE] = settings_module
-    else:
-        if not settings.configured:
-            __multicall__.execute()
-    if hasattr(django, 'setup'):
-        django.setup()
+    django.setup()
     try:
         from .django_plugin import DjangoPlugin
         manager = config.pluginmanager

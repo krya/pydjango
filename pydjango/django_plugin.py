@@ -1,19 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import sys
-
-from itertools import groupby
-import unittest
+from functools import partial
 from importlib import import_module
 
 import pytest
 
 from django.conf import settings
 from django.db import connections, transaction
-from django.core import management
+from django.core import management, mail
 from django.test.runner import DiscoverRunner
 
-from .patches import Module, SUnitTestCase
 from .db_reuse import monkey_patch_creation_for_db_reuse, wrap_database
 from .fixtures import Fixtures
 from .utils import is_transaction_test, nop
@@ -68,10 +65,7 @@ class DjangoPlugin(Fixtures):
         except Exception:
             raise pytest.UsageError(sys.exc_info()[1])
 
-    def pytest_pycollect_makemodule(self, path, parent):
-        return Module(path, parent)
-
-    @pytest.mark.tryfirst  # or trylast as it was ?
+    @pytest.hookimpl(tryfirst=True)
     def pytest_sessionstart(self, session):
         # turn off debug toolbar to speed up testing
         middlewares = []
@@ -97,22 +91,6 @@ class DjangoPlugin(Fixtures):
             if self.original_connection_close:
                 connections[db].close = self.original_connection_close[db]
 
-    @pytest.mark.trylast
-    def pytest_collection_modifyitems(self, items):
-        trans_items = []
-        non_trans = []
-        for index, item in enumerate(items):
-            if item.module.has_transactions:
-                trans_items.append(item)
-            else:
-                non_trans.append(item)
-        sorted_trans = []
-        for module, iterator in groupby(trans_items[:], lambda x: x.module):
-            for item, it in groupby(iterator, lambda x: x.cls and is_transaction_test(x.cls)):
-                sorted_trans.extend(it)
-        sorted_by_modules = non_trans + sorted_trans
-        items[:] = sorted_by_modules
-
     def restore_database(self, item, nextitem):
         for db in connections:
             management.call_command('flush', verbosity=0, interactive=False,
@@ -128,24 +106,25 @@ class DjangoPlugin(Fixtures):
                 if nextitem is not None:
                     item._request.addfinalizer(lambda: self.restore_database(item, nextitem))
 
-    @pytest.mark.tryfirst
-    def pytest_pycollect_makeitem(self, collector, name, obj):
-        """Shadow builtin unittest makeitem with patched class and function
-        """
-        try:
-            isunit = issubclass(obj, unittest.TestCase)
-        except KeyboardInterrupt:
-            raise
-        except Exception:
-            pass
-        else:
-            if isunit:
-                return SUnitTestCase(name, parent=collector)
+    def schedule_savepoints(self, item):
+        for db in connections:
+            if not hasattr(item, 'pydjango_savepoints'):
+                item.pydjango_savepoints = {}
+            item.pydjango_savepoints[db] = transaction.savepoint(using=db)
 
-    @pytest.mark.tryfirst
+    def rollback_savepoints(self, item):
+        for db in connections:
+            sid = item.pydjango_savepoints.pop(db)
+            try:
+                transaction.savepoint_rollback(sid, using=db)
+            except InternalError:
+                print(f'Failed to rollback savepoint - {sid}')
+                transaction.rollback(using=db)
+
+    @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_setup(self, item):
+        mail.outbox = []
         if 'transaction' in item.keywords and self.skip_trans:
             pytest.skip('excluding transaction test')
-
-    def pytest_runtest_call(self, item, __multicall__):
-        return __multicall__.execute()
+        self.schedule_savepoints(item)
+        item.addfinalizer(partial(self.rollback_savepoints, item))
