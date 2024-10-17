@@ -121,10 +121,14 @@ class DjangoPlugin(Fixtures):
                 print(f'Failed to rollback savepoint - {sid}')
                 transaction.rollback(using=db)
 
-    @pytest.hookimpl(trylast=True)
+    @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_setup(self, item):
         mail.outbox = []
         if 'transaction' in item.keywords and self.skip_trans:
             pytest.skip('excluding transaction test')
         self.schedule_savepoints(item)
-        item.addfinalizer(partial(self.rollback_savepoints, item))
+
+    @pytest.hookimpl(trylast=True)
+    def pytest_runtest_teardown(self, item, nextitem):
+        if hasattr(item, 'pydjango_savepoints'):
+            self.rollback_savepoints(item)
