@@ -7,7 +7,7 @@ from importlib import import_module
 import pytest
 
 from django.conf import settings
-from django.db import connections, transaction
+from django.db import connections, transaction, InternalError
 from django.core import management, mail
 from django.test.runner import DiscoverRunner
 
@@ -121,7 +121,7 @@ class DjangoPlugin(Fixtures):
                 print(f'Failed to rollback savepoint - {sid}')
                 transaction.rollback(using=db)
 
-    @pytest.hookimpl(tryfirst=True)
+    @pytest.hookimpl(trylast=True)
     def pytest_runtest_setup(self, item):
         mail.outbox = []
         if 'transaction' in item.keywords and self.skip_trans:
