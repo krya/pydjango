@@ -67,12 +67,6 @@ class DjangoPlugin(Fixtures):
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_sessionstart(self, session):
-        # turn off debug toolbar to speed up testing
-        middlewares = []
-        for mid in settings.MIDDLEWARE_CLASSES:
-            if not mid.startswith('debug_toolbar'):
-                middlewares.append(mid)
-        settings.MIDDLEWARE_CLASSES = middlewares
         for db in connections:
             conn = connections[db]
             conn.set_autocommit(
