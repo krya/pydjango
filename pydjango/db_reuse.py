@@ -92,21 +92,6 @@ class BaseDatabaseOperations(BDO):
         return "ROLLBACK TO SAVEPOINT %s" % sid
 
 
-def cursor_wrapper(function):
-    def wraps(*args, **kwargs):
-        cursor = function(*args, **kwargs)
-        self = getattr(function, 'im_self', function.__self__)
-        if hasattr(self, 'setup_savepoints'):
-            node_list = self.setup_savepoints[:]
-            self.setup_savepoints = []
-            for node in node_list:
-                node.savepoints = {}
-                for db in connections:
-                    node.savepoints[db] = transaction.savepoint(using=db)
-        return cursor
-    return wraps
-
-
 def wrap_database():
     connections._connections = connections._connections.default
     for db in connections.all():
@@ -117,7 +102,9 @@ def wrap_database():
             settings.DATABASES[db.alias]['OPTIONS'] = options
             db.features.uses_savepoints = True
             db.ops = BaseDatabaseOperations(db.alias)
-        # db._cursor = cursor_wrapper(db._cursor)
-        db.allow_thread_sharing = True
+        if hasattr(db, 'inc_thread_sharing'):
+            db.inc_thread_sharing()
+        else:
+            db.allow_thread_sharing = True
         db.abort = nop
         db.close_if_unusable_or_obsolete = nop

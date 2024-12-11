@@ -23,7 +23,7 @@ DEFAULT_LIVE_SERVER = 'django.test.testcases.StoppableWSGIServer'
 def pytest_addoption(parser):
     group = parser.getgroup('pydjango')
     group._addoption('--django-settings',
-                     action='store', type='string', dest='ds', default=None,
+                     action='store', dest='ds', default=None,
                      help='Set %s.' % ENVIRONMENT_VARIABLE)
     group._addoption('--create-db',
                      action='store_true', dest='create_db', default=False,
@@ -32,7 +32,7 @@ def pytest_addoption(parser):
                      action='store_true', dest='migrate', default=False,
                      help='sync db and run migrations')
     group._addoption('--liveserver-class',
-                     action='store', type='string', dest='liveserver_class', default=DEFAULT_LIVE_SERVER,
+                     action='store', dest='liveserver_class', default=DEFAULT_LIVE_SERVER,
                      help='Set live server class to serve requests. default: %s' % DEFAULT_LIVE_SERVER)
     group._addoption('--skip-trans',
                      action='store_true', dest='skip_trans', default=False,
@@ -42,7 +42,7 @@ def pytest_addoption(parser):
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_configure(config, __multicall__):
+def pytest_configure(config):
     if not DJANGO_INSTALLED:
         return
 
