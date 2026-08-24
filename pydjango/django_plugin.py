@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from functools import partial
 from importlib import import_module
 
 import pytest
@@ -111,8 +110,8 @@ class DjangoPlugin(Fixtures):
             sid = item.pydjango_savepoints.pop(db)
             try:
                 transaction.savepoint_rollback(sid, using=db)
-            except InternalError:
-                print(f'Failed to rollback savepoint - {sid}')
+            except transaction.TransactionManagementError:
+                connections[db].in_atomic_block = False
                 transaction.rollback(using=db)
 
     @pytest.hookimpl(tryfirst=True)
